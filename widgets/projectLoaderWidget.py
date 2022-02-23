@@ -153,6 +153,29 @@ class AssetLoaderWidget(QWidget):
 
 		main_layout.addLayout(directoryLayout)
 
+		# ------- Row -------
+		# ----------------------------------------
+		actionLayout = QHBoxLayout()
+		actionLayout.setContentsMargins(0,0,0,0)
+		actionLayout.setSpacing(3)
+		actionLayout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+
+		save_btn = QPushButton("Save")
+		save_btn.setStatusTip("Save the current scene")
+		save_btn.clicked.connect(self.save_file)
+		savePlus_btn = QPushButton("Save+")
+		savePlus_btn.setStatusTip("Save the current scene with a new version")
+		savePlus_btn.clicked.connect(self.saveplus_file)
+		publish_btn = QPushButton("Publish")
+		publish_btn.setStatusTip("Publish the current scene")
+		publish_btn.clicked.connect(self.publish_file)
+
+		actionLayout.addWidget(save_btn)
+		actionLayout.addWidget(savePlus_btn)
+		actionLayout.addWidget(publish_btn)
+
+		main_layout.addLayout(actionLayout)
+
 		self.reload_assetTypes()
 
 	def show_AssetCreationDialog(self):
@@ -363,6 +386,50 @@ class AssetLoaderWidget(QWidget):
 	def publish_file(self):
 		print("not implemented yet!!")
 
+	def save_file(self):
+		save_Scene()
+
+	def saveplus_file(self):
+		workdir = self._project.get_WorkDirectory()
+		assetType = self.assetType_combo.currentText()
+		assetSpace = self.assetSpace_combo.currentText()
+		assetContainer = self.get_selectedAssetContainer()
+
+		if workdir and assetType and assetSpace and assetContainer:
+			dirPath = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace))
+			if os.path.isdir(dirPath):
+				assetName = self.assetContainer_list.currentIndex().data()
+				index = self.assetSpace_filter.mapToSource(self.assetSpace_list.currentIndex())
+				file_path = self.assetSpace_model.filePath(index)
+				print(os.path.basename(file_path))
+
+
+				all_files = os.walk(dirPath).next()[2]
+				nameTemp = "{}_".format(assetName)
+				versions = list()
+				for each in all_files:
+					if each.startswith(nameTemp):
+						raw_name, extension = os.path.splitext(each)
+						extra = raw_name.replace(nameTemp,"")
+						if extra.isdigit():
+							versions.append(int(extra))
+				if versions:
+					newVersion = max(versions)+1
+				else:
+					newVersion = 1
+				newFileName = "{}_{:03d}".format(assetName,newVersion)
+
+				set_MayaProject(directory=dirPath)
+				rename_Scene(name="{}.ma".format(newFileName))
+				save_Scene()
+
+				Pipeline().set_AssetType(assetType)
+				Pipeline().set_AssetContainer(assetContainer)
+				Pipeline().set_AssetSpace(assetSpace)
+				Pipeline().set_AssetName(assetName)
+				self.onUpdate.emit()
+				self.reload_assetWorkspaceList()
+
 	def assetSpace_doubleclicked(self):
 		fileName = self.assetSpace_list.currentIndex().data()
 		if fileName.lower().endswith(".ma"):
@@ -436,7 +503,6 @@ class AssetLoaderWidget(QWidget):
 				self.assetSpace_filter.setSourceModel(self.assetSpace_model)
 				# self.assetSpace_filter.setFilterRegExp(r"^([^.])$")
 				self.assetSpace_list.setModel(self.assetSpace_filter)
-				# self.assetSpace_list.setRootIndex(self.assetSpace_model.setRootPath(assetPath))
 				self.assetSpace_list.setRootIndex(self.assetSpace_filter.mapFromSource(self.assetSpace_model.setRootPath(assetPath)))
 				self.assetSpace_list.hideColumn(1)
 				self.assetSpace_list.hideColumn(2)
