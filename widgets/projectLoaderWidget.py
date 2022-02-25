@@ -473,18 +473,13 @@ class AssetLoaderWidget(QWidget):
 		self.reload_assetWorkspaceList()
 
 	def browse_workspace_file(self):
-		workdir = Pipeline().get_WorkDirectory()
-		assetType = self.assetType_combo.currentText()
-		assetSpace = self.assetSpace_combo.currentText()
-		assetContainer = self.get_selectedAssetContainer()
-
-		dirPath = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace))
-
-		assetName = self.assetSpace_list.currentIndex().data()
-
-		filePath = os.path.normpath(os.path.join(dirPath,assetName))
-		print(filePath)
-		subprocess.Popen(r'explorer /select,"{path}"'.format(path=filePath))
+		if self.assetSpace_list.currentIndex().row() >= 0:
+			index = self.assetSpace_filter.mapToSource(self.assetSpace_list.currentIndex())
+			file_path = self.assetSpace_model.filePath(index)
+			if file_path and os.path.exists(file_path):
+				file_path = os.path.normpath(file_path)
+				print(file_path)
+				subprocess.Popen(r'explorer /select,"{path}"'.format(path=file_path))
 
 	def asset_selectionChanged(self, index=QItemSelection()):
 		self.reload_assetWorkspaceList()
