@@ -10,6 +10,7 @@ PROJECT_EXTENSION = ".hfp"
 
 class ProjectKeys():
 	WorkDirectory = "Work_directory"
+	PublishDirectory = "Publish_directory"
 	Project = "Project"
 	Version = "Version"
 	AssetTypes = "AssetTypes"
@@ -112,6 +113,24 @@ class ProjectMeta(QObject):
 		self._pm.set_WorkDirectory(work_directory)
 		self.onWorkDirectoryUpdate.emit()
 
+	def get_PublishDirectory(self):
+		'''Get the Publish_directory
+
+			Return:
+				(str): Path to project work directory.
+		'''
+		return self._pm.get_PublishDirectory()
+	def set_PublishDirectory(self, publish_directory=str):
+		'''update the Work Directory
+
+			Args:
+				publish_directory (str): Path to project work directory.
+		
+			Return: None
+		'''
+		self._data[ProjectKeys.PublishDirectory] = publish_directory
+		self._pm.set_PublishDirectory(publish_directory)
+
 	def get_AssetTypesName(self):
 		'''Get list of all the project AssetTypes'''
 		return self._data[ProjectKeys.AssetTypes].keys()
@@ -157,6 +176,8 @@ class ProjectMeta(QObject):
 							self.set_WorkDirectory(work_directory=LoadedData[ProjectKeys.WorkDirectory])
 						if ProjectKeys.AssetTypes in LoadedData:
 							self.set_AssetTypes(assetTypeDict=LoadedData[ProjectKeys.AssetTypes])
+						if ProjectKeys.PublishDirectory in LoadedData:
+							self.set_PublishDirectory(publish_directory=LoadedData[ProjectKeys.PublishDirectory])
 
 	def save(self, ProjectFile=str):
 		'''Save Hands Free Projet file

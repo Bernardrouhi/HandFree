@@ -6,17 +6,15 @@ from PySide2.QtWidgets import (QAction, QFileDialog, QListWidget, QMenu, QSizePo
 from PySide2.QtGui import (QRegExpValidator)
 from PySide2.QtCore import (Qt, QPoint, QRegExp)
 
-import validateWidget
-from ..core import projectMetaData
+from ...core import projectMetadata
 
-reload(validateWidget)
-reload(projectMetaData)
+reload(projectMetadata)
 
-from ..core.projectMetaData import ProjectMeta, AssetSpaceKeys, ProjectKeys
-from validateWidget import ValidateWidget, ValidationKeys
+from ...core.projectMetadata import ProjectMeta, AssetSpaceKeys, ProjectKeys
+from ..validateWidget import ValidateWidget, ValidationKeys
 
 class ProjectSetupDialog(QDialog):
-	def __init__(self, parent=None, ProjectName=str, WorkDirectory=str, AssetTypes=dict):
+	def __init__(self, parent=None, ProjectName=str, WorkDirectory=str, PublishDirectory=str, AssetTypes=dict):
 		super(ProjectSetupDialog, self).__init__(parent=parent)
 
 		self._assetTypes = AssetTypes
@@ -60,13 +58,34 @@ class ProjectSetupDialog(QDialog):
 		self.work_in = QLineEdit()
 		self.work_in.setText(WorkDirectory)
 		work_btn = QPushButton("Browse")
-		work_btn.clicked.connect(self._pick_WorkDirectory)
+		work_btn.clicked.connect(self.pick_WorkDirectory)
 
 		workLayout.addWidget(worklabel)
 		workLayout.addWidget(self.work_in)
 		workLayout.addWidget(work_btn)
 
 		mainLayout.addLayout(workLayout)
+
+		# ------- Row -------
+		# ----------------------------------------
+		publish_layout = QHBoxLayout()
+		publish_layout.setContentsMargins(0,0,0,0)
+		publish_layout.setSpacing(3)
+		publish_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+
+		publish_label = QLabel('Publish directory:')
+		publish_label.setAlignment(Qt.AlignRight|Qt.AlignCenter)
+		publish_label.setFixedWidth(100)
+		self.publish_in = QLineEdit()
+		self.publish_in.setText(PublishDirectory)
+		publish_btn = QPushButton("Browse")
+		publish_btn.clicked.connect(self.pick_PublishDirectory)
+
+		publish_layout.addWidget(publish_label)
+		publish_layout.addWidget(self.publish_in)
+		publish_layout.addWidget(publish_btn)
+
+		mainLayout.addLayout(publish_layout)
 
 		# ------- Row -------
 		# ----------------------------------------
@@ -214,7 +233,8 @@ class ProjectSetupDialog(QDialog):
 	def remove_assetType(self):
 		'''Remove the asset type'''
 		if self.assetType_list.currentRow() >= 0 :
-			self.assetType_list.takeItem( self.assetType_list.currentRow() )
+			del self._assetTypes[self.assetType_list.currentItem().text()]
+			self.assetType_list.takeItem(self.assetType_list.currentRow())
 
 	def browse_assetType_directory(self):
 		'''Browse into AssetType Folder'''
@@ -325,7 +345,7 @@ class ProjectSetupDialog(QDialog):
 			elif column == 1:
 				assetSpaceData = self.assetSpace_table.cellWidget(row, column).currentText()
 				data[ProjectKeys.WorkSpace] = assetSpaceData
-			print("Updated [row:{0},column:{1}]".format(row,column))
+			# print("Updated [row:{0},column:{1}]".format(row,column))
 
 	def reload_assetTypes(self):
 		assetTypes = self._assetTypes.keys()
@@ -353,11 +373,24 @@ class ProjectSetupDialog(QDialog):
 		'''Get WorkDirectory'''
 		return self.work_in.text()
 
-	def _pick_WorkDirectory(self):
+	def get_PublishDirectory(self):
+		'''Get WorkDirectory'''
+		return self.publish_in.text()
+
+	def get_AssetTypes(self):
+		return self._assetTypes
+
+	def pick_WorkDirectory(self):
 		'''Pick Work Directory'''
-		pickedDir = QFileDialog.getExistingDirectory(self,"Pick Work Directory Folder",self.work_in.text())
-		if pickedDir:
-			self.work_in.setText(pickedDir)
+		work_Dir = QFileDialog.getExistingDirectory(self,"Pick Work Directory Folder",self.work_in.text())
+		if work_Dir:
+			self.work_in.setText(os.path.normpath(work_Dir))
+
+	def pick_PublishDirectory(self):
+		'''Pick Publish Directory'''
+		publish_dir = QFileDialog.getExistingDirectory(self,"Pick Publish Directory Folder",self.publish_in.text())
+		if publish_dir:
+			self.publish_in.setText(os.path.normpath(publish_dir))
 
 	def new_AssetSpace(self):
 		if self.assetType_list.currentRow() >= 0 :

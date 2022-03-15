@@ -5,18 +5,19 @@ from PySide2.QtCore import Qt
 
 import projectLoaderWidget
 import projectInfoWidget
-import projectSetupDialog
-from ..core import projectMetaData
+import dialogs.projectSetupDialog
+from ..core import projectMetadata
 
 reload(projectLoaderWidget)
 reload(projectInfoWidget)
-reload(projectSetupDialog)
-reload(projectMetaData)
+reload(dialogs.projectSetupDialog)
+reload(projectMetadata)
 
 from projectLoaderWidget import AssetLoaderWidget
 from projectInfoWidget import ProjectInfo
-from projectSetupDialog import ProjectSetupDialog
-from ..core.projectMetaData import ProjectMeta
+from dialogs.projectSetupDialog import ProjectSetupDialog
+from dialogs.exportAssetsDialog import ExportDialog
+from ..core.projectMetadata import ProjectMeta
 
 class HandsFreeMainWindow(QMainWindow):
 	def __init__(self, parent=None, projectfile=str(), edit=bool(False)):
@@ -66,6 +67,7 @@ class HandsFreeMainWindow(QMainWindow):
 		window_menu = QMenuBar(self)
 
 		if self._edit:
+			# Setup Menu
 			setup_menu = window_menu.addMenu("&Setup")
 
 			setup_action = QAction("&Setup Project", self)
@@ -82,6 +84,19 @@ class HandsFreeMainWindow(QMainWindow):
 			save_action.setStatusTip('Save hfp file.')
 			save_action.triggered.connect(self.save_project)
 			setup_menu.addAction(save_action)
+
+		# Tool Menu
+		tool_menu = window_menu.addMenu("&Tool")
+
+		export_action = QAction("&Export", self)
+		export_action.setStatusTip('Batch export assets.')
+		export_action.triggered.connect(self.export_asset)
+		tool_menu.addAction(export_action)
+
+		import_action = QAction("&Import", self)
+		import_action.setStatusTip('Batch import assets.')
+		import_action.triggered.connect(self.import_asset)
+		tool_menu.addAction(import_action)
 
 		# About menu
 		about_menu = window_menu.addMenu("&About")
@@ -101,11 +116,14 @@ class HandsFreeMainWindow(QMainWindow):
 		projectDialog = ProjectSetupDialog(
 					ProjectName=self._project.get_ProjectName(),
 					WorkDirectory=self._project.get_WorkDirectory(),
-					AssetTypes=self._project.get_AssetTypes()
+					PublishDirectory=self._project.get_PublishDirectory(),
+					AssetTypes=self._project.get_AssetTypes().copy()
 		)
 		if projectDialog.exec_() == QDialog.Accepted:
 			self._project.set_ProjectName(projectDialog.get_ProjectName())
+			self._project.set_AssetTypes(projectDialog.get_AssetTypes())
 			self._project.set_WorkDirectory(projectDialog.get_WorkDirectory())
+			self._project.set_PublishDirectory(projectDialog.get_PublishDirectory())
 			print ("Project Settings are stored.")
 
 	def save_project(self):
@@ -118,3 +136,12 @@ class HandsFreeMainWindow(QMainWindow):
 		file_path, okPressed = QFileDialog.getOpenFileName(self, 'Open Project File', self._project.get_LastPath(),"Hand Free Project (*.hfp)")
 		if file_path:
 			self._project.load(ProjectFile=file_path)
+
+	def export_asset(self):
+		export_Dialog = ExportDialog(project=self._project)
+
+		if export_Dialog.exec_() == QDialog.Accepted:
+			print("OKAY")
+
+	def import_asset(self):
+		pass

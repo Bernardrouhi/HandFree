@@ -7,6 +7,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtWidgets import (QWidget, QMessageBox)
 from shiboken2 import wrapInstance
 from style_handler import current_file_path
+import pymel
 
 class MayaAPIs():
 	MAYA2020 = 20200100
@@ -207,11 +208,64 @@ def copy_workspace(destination=str):
 	if os.path.isdir(destination):
 		shutil.copy(workspace_file,destination)
 
-def reference_FileToScene(file_path=str, namespace=str):
-	cmds.file(file_path , reference=True, ignoreVersion = True, namespace = namespace)
+def reference_FileToScene(file_path=str, group_name=str, namespace_name=str):
+	cmds.file(file_path, 
+			reference=True, 
+			ignoreVersion=True, 
+			groupReference=True, 
+			groupName=group_name, 
+			namespace=namespace_name)
+
+def create_group(asset_list=list, group_name=str):
+	cmds.group(asset_list, name=group_name)
 
 def import_FileToScene(file_path=str, namespace=str):
 	cmds.file(file_path , i=True, ignoreVersion = True, namespace = namespace)
 
 def set_worldspace():
-	cmds.upAxis( axis='z', rotateView=True )
+	if cmds.upAxis(query=True,axis=True) != "z":
+		cmds.upAxis( axis='z', rotateView=True)
+
+def get_MayaVersion():
+	return cmds.about(product=True)
+
+def isSceneModified():
+	'''check if the current scene file is modified.
+
+		Return:
+			(boolean): True if modified, otherwise False.
+	'''
+	return cmds.file(query=True,modified=True)
+
+def getCurrentSceneName():
+	'''get current scene name.
+
+		Return:
+			(string): Path or Name of the scene.
+	'''
+	return cmds.file(query=True, sceneName=True)
+
+def set_defaultSceneSettings():
+	'''Set Default settings
+	'''
+	cmds.currentUnit( linear='meter', angle='degree', time='ntsc' )
+	cmds.grid( size='10m', spacing='1m', divisions=2)
+
+def show_grid():
+	'''Show custom grid
+	'''
+	cmds.grid( perspectiveLabelPosition='axis', displayPerspectiveLabels=True, displayAxes=True, displayAxesBold=True)
+	cmds.grid( orthographicLabelPosition='axis' ,displayOrthographicLabels=True)
+	cmds.displayColor( 'gridAxis', 2, dormant=True )
+	cmds.displayColor("gridHighlight" , 7, dormant=True) 
+
+def default_grid():
+	'''Set default grid
+	'''
+	cmds.grid( displayPerspectiveLabels=False, displayAxes=True, displayAxesBold=True)
+	cmds.grid(displayOrthographicLabels=False)
+	cmds.displayColor( 'gridAxis', 2, dormant=True )
+	cmds.displayColor("gridHighlight" , 2, dormant=True) 
+
+def is_custom_grid():
+	return cmds.grid( displayPerspectiveLabels=True, q=True )

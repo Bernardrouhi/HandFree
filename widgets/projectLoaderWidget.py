@@ -3,21 +3,27 @@ from PySide2.QtWidgets import (QWidget, QComboBox, QVBoxLayout, QHBoxLayout,
 								QSizePolicy, QLabel, QLineEdit, QSpacerItem,
 								QListView, QMenu, QPushButton, QDialog, QGridLayout,
 								QAction, QFileSystemModel, QAbstractItemView,
-								QTreeView, QListWidget, QSpinBox, QTreeView)
-from PySide2.QtGui import (QStandardItemModel, QStandardItem, QMouseEvent)
+								QTreeView, QListWidget, QSpinBox, QTreeView,
+								QHeaderView, QTreeWidget, QTreeWidgetItem, 
+								QWidgetAction,QMessageBox)
+from PySide2.QtGui import (QStandardItemModel, QStandardItem, QMouseEvent, QWheelEvent)
 from PySide2.QtCore import (Qt, Signal, QEvent, QPoint, QSortFilterProxyModel,
 							QItemSelection, QDir, QModelIndex)
-
-from  ..core import pipeline_handler, mayaHelper, projectMetaData
+from dialogs import publishAssetDialog
+from  ..core import pipeline_handler, mayaHelper, projectMetadata
 
 reload(mayaHelper)
 reload(pipeline_handler)
+reload(publishAssetDialog)
 
 from ..core.pipeline_handler import Pipeline
 from ..core.mayaHelper import (open_scene, set_MayaProject, create_EmptyScene,
 								copy_workspace, get_workspaceName, save_Scene,
-								rename_Scene,reference_FileToScene, import_FileToScene)
-from ..core.projectMetaData import ProjectMeta, ProjectKeys, AssetSpaceKeys
+								rename_Scene,reference_FileToScene, import_FileToScene,
+								set_worldspace, isSceneModified, getCurrentSceneName,
+								set_defaultSceneSettings, show_grid, default_grid, is_custom_grid)
+from ..core.projectMetadata import ProjectMeta, ProjectKeys, AssetSpaceKeys
+from dialogs.publishAssetDialog import PublishDialog, PublishGameDialog
 
 class AssetLoaderWidget(QWidget):
 	'''Manage project assets'''
@@ -55,24 +61,6 @@ class AssetLoaderWidget(QWidget):
 		assetTypeLayout.addWidget(self.assetType_combo)
 
 		main_layout.addLayout(assetTypeLayout)
-		# ------- Row -------
-		# ----------------------------------------
-		assetSpaceLayout = QHBoxLayout()
-		assetSpaceLayout.setContentsMargins(0,0,0,0)
-		assetSpaceLayout.setSpacing(3)
-		assetSpaceLayout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
-
-		assetSpaceLabel = QLabel("Asset Space:")
-		assetSpaceLabel.setFixedWidth(65)
-		assetSpaceLabel.setAlignment(Qt.AlignTop|Qt.AlignRight)
-		self.assetSpace_combo = QComboBox()
-		self.assetSpace_combo.setFixedWidth(150)
-		self.assetSpace_combo.currentIndexChanged.connect(self.assetSpace_IndexChanged)
-
-		assetSpaceLayout.addWidget(assetSpaceLabel)
-		assetSpaceLayout.addWidget(self.assetSpace_combo)
-
-		main_layout.addLayout(assetSpaceLayout)
 
 		# ------- Row -------
 		# ----------------------------------------
@@ -106,16 +94,12 @@ class AssetLoaderWidget(QWidget):
 		assetSpacer = QLabel("Asset Name:")
 		assetSpacer.setFixedWidth(65)
 		assetSpacer.setAlignment(Qt.AlignTop|Qt.AlignRight)
-		self.assetContainer_list = AssetTreeView()
-		self.assetContainer_list.setHeaderHidden(True)
+		self.assetContainer_columns = ['AssetContainer','AssetSpace']
+		self.assetContainer_list = QTreeWidget()
+		self.assetContainer_list.setHeaderLabels(self.assetContainer_columns)
 		self.assetContainer_list.setEditTriggers(QAbstractItemView.NoEditTriggers)
 		self.assetContainer_list.setContextMenuPolicy(Qt.CustomContextMenu)
 		self.assetContainer_list.customContextMenuRequested.connect(self.assetMenu)
-		self.assetContainer_model = QStandardItemModel()
-		self.assetContainer_filter = QSortFilterProxyModel()
-		self.assetContainer_filter.setSourceModel(self.assetContainer_model)
-		self.assetContainer_filter.setRecursiveFilteringEnabled(True)
-		self.assetContainer_list.setModel(self.assetContainer_filter)
 
 		self.assetContainer_list.selectionModel().selectionChanged.connect(self.asset_selectionChanged)
 
@@ -163,16 +147,24 @@ class AssetLoaderWidget(QWidget):
 		save_btn = QPushButton("Save")
 		save_btn.setStatusTip("Save the current scene")
 		save_btn.clicked.connect(self.save_file)
-		savePlus_btn = QPushButton("Save+")
-		savePlus_btn.setStatusTip("Save the current scene with a new version")
-		savePlus_btn.clicked.connect(self.saveplus_file)
-		publish_btn = QPushButton("Publish")
-		publish_btn.setStatusTip("Publish the current scene")
-		publish_btn.clicked.connect(self.publish_file)
+		# savePlus_btn = QPushButton("Save+")
+		# savePlus_btn.setStatusTip("Save the current scene with a new version")
+		# savePlus_btn.clicked.connect(self.saveplus_file)
+		# publish_btn = QPushButton("Publish")
+		# publish_btn.setStatusTip("Publish the current scene")
+		# publish_btn.clicked.connect(self.publish_file)
+		default_btn = QPushButton("Set Defaults")
+		default_btn.setStatusTip("set Default settings")
+		default_btn.clicked.connect(self.set_SceneDefaults)
+		grid_btn = QPushButton("Toggle Grids")
+		grid_btn.setStatusTip("Toggle Grids")
+		grid_btn.clicked.connect(self.toggle_grids)
+
 
 		actionLayout.addWidget(save_btn)
-		actionLayout.addWidget(savePlus_btn)
-		actionLayout.addWidget(publish_btn)
+		actionLayout.addWidget(default_btn)
+		actionLayout.addWidget(grid_btn)
+		# actionLayout.addWidget(publish_btn)
 
 		main_layout.addLayout(actionLayout)
 
@@ -187,8 +179,12 @@ class AssetLoaderWidget(QWidget):
 			self.reload_assetContainerList()
 
 	def create_New_AssetContainer(self, assetContainer=str, assetTypeName=str):
-		'''Creating a new Asset'''
-		# workfile directory
+		'''Create a new AssetContainer
+
+			It gets workdirecotry from project, and create sets of assetSpaces with their workspace
+			from given assetContainer and assetTypeName.
+		'''
+		# get workfile directory from project
 		workDir = self._project.get_WorkDirectory()
 		assetTypeDir = os.path.normpath(os.path.join(workDir,assetTypeName))
 		if os.path.isdir(assetTypeDir):
@@ -207,20 +203,37 @@ class AssetLoaderWidget(QWidget):
 			print(assetPath)
 
 	def assetType_IndexChanged(self, Index=int):
-		self.reload_assetSpace()
-
-	def assetSpace_IndexChanged(self, Index=int):
 		self.reload_assetContainerList()
-		self.reload_assetWorkspaceList()
 
 	def assetMenu(self, point=QPoint):
 		if self.assetContainer_list.selectedIndexes():
 			self.assetTMenu = QMenu()
+			
+			item = self.get_selectedAssetContainerItem()
 
-			browse_action = QAction("Browse Folder", self)
+			browse_action = QAction("Browse Work Folder", self)
 			browse_action.setStatusTip('Browse into asset directory.')
 			browse_action.triggered.connect(self.browse_asset_directory)
 			self.assetTMenu.addAction(browse_action)
+
+			if item:
+				log_action = QAction("View Publish Logs", self)
+				log_action.setStatusTip('View published files histories.')
+				log_action.triggered.connect(self.view_published_logs)
+				self.assetTMenu.addAction(log_action)
+
+			self.assetTMenu.addSeparator()
+
+			if item:
+				new_action = QAction("Create a new Scene", self)
+				new_action.setStatusTip('Create a new scene.')
+				new_action.triggered.connect(self.create_scene)
+				self.assetTMenu.addAction(new_action)
+
+				# list of published files
+				self.assetTMenu.addMenu(self.get_published_files())
+
+				self.assetTMenu.addSeparator()
 
 			fix_action = QAction("Fix AssetSpace", self)
 			fix_action.setStatusTip('Check/fix missing AssetSpace and workspace.')
@@ -229,6 +242,47 @@ class AssetLoaderWidget(QWidget):
 
 			self.assetTMenu.move(self.assetContainer_list.viewport().mapToGlobal(point))
 			self.assetTMenu.show()
+
+	def get_published_files(self):
+		publishMenu = QMenu()
+		publishMenu.setTitle("Create Reference")
+		publishMenu.setStatusTip("Create Reference from published files.")
+
+		publish_path = self.get_published_directory()
+		if os.path.exists(publish_path):
+			for each in os.walk(publish_path).next()[2]:
+				if each.lower().endswith((".ma",".mb")):
+					new_action = QAction(each, publishMenu)
+					new_action.triggered.connect(self.create_reference)
+					publishMenu.addAction(new_action)
+		#None
+		new_action = QAction("...", publishMenu)
+		new_action.setDisabled(True)
+		# new_action.setStatusTip('Create a new scene.')
+		# new_action.triggered.connect(self.create_scene)
+
+		publishMenu.addAction(new_action)
+
+		return publishMenu
+
+	def create_reference(self):
+		publish_path = self.get_published_directory()
+		fileName = self.sender().text()
+		published = os.path.join(publish_path,fileName)
+		raw_name, extension = os.path.splitext(fileName)
+		groupName = "{}_grp".format(raw_name)
+		reference_FileToScene(file_path=published,group_name=groupName,namespace_name=raw_name)
+
+	def get_published_directory(self):
+		publish_path = str()
+		assetType = self.assetType_combo.currentText()
+		assetSpace = self.get_selectedAssetSpace()
+		item = self.get_selectedAssetContainerItem()
+		if item:
+			assetName = item.text(0)
+			assetContainer = self.get_selectedAssetContainer()
+			publish_path = os.path.join(self._project.get_PublishDirectory(),assetType,assetContainer,assetSpace)
+		return publish_path
 
 	def browse_asset_directory(self):
 		'''Browse into Asset Folder'''
@@ -243,10 +297,9 @@ class AssetLoaderWidget(QWidget):
 	def fix_assetSpace(self):
 		assetTypeName  = self.assetType_combo.currentText()
 		workDirectory = self._project.get_WorkDirectory()
-		assetSpaceName = self.assetSpace_combo.currentText()
 		if os.path.isdir(workDirectory):
-			itemModel = self.get_selectedAssetContainerItem()
-			if itemModel and not itemModel.hasChildren():
+			item = self.get_selectedAssetContainerItem()
+			if item:
 				assetContainer = self.get_selectedAssetContainer()
 				self.create_New_AssetContainer(assetContainer=assetContainer,assetTypeName=assetTypeName)
 				print("Done")
@@ -272,22 +325,38 @@ class AssetLoaderWidget(QWidget):
 			self.newMenu.addAction(save_action)
 
 			if fileName.lower().endswith(".ma") or fileName.lower().endswith(".mb"):
-				publish_action = QAction("Publish the file", self)
-				publish_action.setStatusTip('Publish the selected scene.')
+				publish_action = QAction("Publish Asset...", self)
+				publish_action.setStatusTip('Publish the selected asset.')
+				publish_font = publish_action.font()
+				publish_font.setBold(True)
+				publish_action.setFont(publish_font)
 				publish_action.triggered.connect(self.publish_file)
+				# publish_action.setDisabled(True)
 				self.newMenu.addAction(publish_action)
 
 				self.newMenu.addSeparator()
 
+				# Have to get from publish directory
 				reference_action = QAction("Create Reference", self)
 				reference_action.setStatusTip('Create a reference of this file in the scene.')
 				reference_action.triggered.connect(self.reference_file)
+				reference_action.setDisabled(True)
 				self.newMenu.addAction(reference_action)
 
 				import_action = QAction("Import to...", self)
 				import_action.setStatusTip('Import the file into the scene.')
 				import_action.triggered.connect(self.import_file)
 				self.newMenu.addAction(import_action)
+
+			if fileName.lower().endswith(".fbx"):
+				gamePublish_action = QAction("Publish Game Asset...", self)
+				gamePublish_action.setStatusTip('Publish the selected asset to game engine.')
+				gamePublish_font = gamePublish_action.font()
+				gamePublish_font.setBold(True)
+				gamePublish_action.setFont(gamePublish_font)
+				gamePublish_action.triggered.connect(self.publish_game_file)
+				# publish_action.setDisabled(True)
+				self.newMenu.addAction(gamePublish_action)
 
 			self.newMenu.addSeparator()
 
@@ -309,100 +378,75 @@ class AssetLoaderWidget(QWidget):
 	def reference_file(self):
 		workdir = Pipeline().get_WorkDirectory()
 		assetType = self.assetType_combo.currentText()
-		assetSpace = self.assetSpace_combo.currentText()
-		assetContainer = self.get_selectedAssetContainer()
-		fileName = self.assetSpace_list.currentIndex().data()
-		
-		file_path = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace,fileName))
-		raw_name, extension = os.path.splitext(fileName)
-		reference_FileToScene(file_path=file_path, namespace=raw_name)
+		assetSpace = self.get_selectedAssetSpace()
+		if assetSpace:
+			assetContainer = self.get_selectedAssetContainer()
+			fileName = self.assetSpace_list.currentIndex().data()
+			
+			file_path = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace,fileName))
+			raw_name, extension = os.path.splitext(fileName)
+			groupName = "{}_grp".format(raw_name)
+			reference_FileToScene(file_path=file_path,group_name=groupName,namespace_name=raw_name)
 
 	def import_file(self):
 		workdir = Pipeline().get_WorkDirectory()
 		assetType = self.assetType_combo.currentText()
-		assetSpace = self.assetSpace_combo.currentText()
-		assetContainer = self.get_selectedAssetContainer()
-		fileName = self.assetSpace_list.currentIndex().data()
+		assetSpace = self.get_selectedAssetSpace()
+		if assetSpace:
+			assetContainer = self.get_selectedAssetContainer()
+			fileName = self.assetSpace_list.currentIndex().data()
 
-		file_path = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace,fileName))
-		raw_name, extension = os.path.splitext(fileName)
-		import_FileToScene(file_path=file_path, namespace=raw_name)
+			file_path = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace,fileName))
+			raw_name, extension = os.path.splitext(fileName)
+			import_FileToScene(file_path=file_path, namespace=raw_name)
 
 	def open_file(self):
 		workdir = Pipeline().get_WorkDirectory()
 		assetType = self.assetType_combo.currentText()
-		assetSpace = self.assetSpace_combo.currentText()
-		assetContainer = self.get_selectedAssetContainer()
-		assetName = self.assetContainer_list.currentIndex().data()
-		fileName = self.assetSpace_list.currentIndex().data()
+		assetSpace = self.get_selectedAssetSpace()
+		if assetSpace:
+			assetContainer = self.get_selectedAssetContainer()
+			assetItem = self.get_selectedAssetContainerItem()
+			if assetItem:
+				assetName = assetItem.text(0)
+				fileName = self.assetSpace_list.currentIndex().data()
 
-		dirPath = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace))
-		filePath = os.path.normpath(os.path.join(dirPath,fileName))
+				dirPath = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace))
+				filePath = os.path.normpath(os.path.join(dirPath,fileName))
 
-		set_MayaProject(directory=dirPath)
-		open_scene(scene_path=filePath)
-		Pipeline().set_AssetType(assetType)
-		Pipeline().set_AssetContainer(assetContainer)
-		Pipeline().set_AssetSpace(assetSpace)
-		Pipeline().set_AssetName(assetName)
-		self.onUpdate.emit()
+				if isSceneModified():
+					saveCheck = QMessageBox()
+					result = saveCheck.warning(self,'Save Changes', "Save changes to {}?".format(getCurrentSceneName()), QMessageBox.Save|QMessageBox.Discard|QMessageBox.Cancel)
+					if result == QMessageBox.Save:
+						save_Scene()
+					elif result == QMessageBox.Cancel:
+						return
+
+				set_worldspace()
+				set_MayaProject(directory=dirPath)
+				open_scene(scene_path=filePath)
+				set_defaultSceneSettings()
+				default_grid()
+				Pipeline().set_AssetType(assetType)
+				Pipeline().set_AssetContainer(assetContainer)
+				Pipeline().set_AssetSpace(assetSpace)
+				Pipeline().set_AssetName(assetName)
+				self.onUpdate.emit()
+
+	def view_published_logs(self):
+		pass
 		
 	def external_save(self):
 		workdir = self._project.get_WorkDirectory()
 		assetType = self.assetType_combo.currentText()
-		assetSpace = self.assetSpace_combo.currentText()
-		assetContainer = self.get_selectedAssetContainer()
-		assetName = self.assetContainer_list.currentIndex().data()
-
-		dirPath = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace))
-		print(dirPath)
-
-		all_files = os.walk(dirPath).next()[2]
-		nameTemp = "{}_".format(assetName)
-		versions = list()
-		for each in all_files:
-			if each.startswith(nameTemp):
-				raw_name, extension = os.path.splitext(each)
-				extra = raw_name.replace(nameTemp,"")
-				if extra.isdigit():
-					versions.append(int(extra))
-		if versions:
-			newVersion = max(versions)+1
-		else:
-			newVersion = 1
-		newFileName = "{}_{:03d}".format(assetName,newVersion)
-
-		set_MayaProject(directory=dirPath)
-		rename_Scene(name="{}.ma".format(newFileName))
-		save_Scene()
-
-		Pipeline().set_AssetType(assetType)
-		Pipeline().set_AssetContainer(assetContainer)
-		Pipeline().set_AssetSpace(assetSpace)
-		Pipeline().set_AssetName(assetName)
-		self.onUpdate.emit()
-		self.reload_assetWorkspaceList()
-
-	def publish_file(self):
-		print("not implemented yet!!")
-
-	def save_file(self):
-		save_Scene()
-
-	def saveplus_file(self):
-		workdir = self._project.get_WorkDirectory()
-		assetType = self.assetType_combo.currentText()
-		assetSpace = self.assetSpace_combo.currentText()
-		assetContainer = self.get_selectedAssetContainer()
-
-		if workdir and assetType and assetSpace and assetContainer:
-			dirPath = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace))
-			if os.path.isdir(dirPath):
-				assetName = self.assetContainer_list.currentIndex().data()
-				index = self.assetSpace_filter.mapToSource(self.assetSpace_list.currentIndex())
-				file_path = self.assetSpace_model.filePath(index)
-				print(os.path.basename(file_path))
-
+		assetSpace = self.get_selectedAssetSpace()
+		if assetSpace:
+			assetContainer = self.get_selectedAssetContainer()
+			assetItem = self.get_selectedAssetContainerItem()
+			if assetItem:
+				assetName = assetItem.text(0)
+				dirPath = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace))
+				print(dirPath)
 
 				all_files = os.walk(dirPath).next()[2]
 				nameTemp = "{}_".format(assetName)
@@ -430,6 +474,102 @@ class AssetLoaderWidget(QWidget):
 				self.onUpdate.emit()
 				self.reload_assetWorkspaceList()
 
+	def publish_file(self):
+		assetType = self.assetType_combo.currentText()
+		assetSpace = self.get_selectedAssetSpace()
+		item = self.get_selectedAssetContainerItem()
+		# Get selected file path
+		index = self.assetSpace_filter.mapToSource(self.assetSpace_list.currentIndex())
+		file_path = os.path.normpath(self.assetSpace_model.filePath(index))
+		file_path = file_path.replace(self._project.get_WorkDirectory(),"").strip("\\")
+		if item:
+			assetName = item.text(0)
+			assetContainer = self.get_selectedAssetContainer()
+
+			publish_dialog = PublishDialog(
+						assetType=assetType,
+						assetContainer=assetContainer,
+						assetSpace=assetSpace,
+						assetName=assetName,
+						filePath=file_path)
+			if publish_dialog.exec_() == publish_dialog.Accepted:
+				result = publish_dialog.publish_asset()
+				if result:
+					publish_dialog.print_logs()
+				else:
+					print("Couldn't publish the file!")
+
+	def publish_game_file(self):
+		assetType = self.assetType_combo.currentText()
+		assetSpace = self.get_selectedAssetSpace()
+		item = self.get_selectedAssetContainerItem()
+		# Get selected file path
+		index = self.assetSpace_filter.mapToSource(self.assetSpace_list.currentIndex())
+		file_path = os.path.normpath(self.assetSpace_model.filePath(index))
+		file_path = file_path.replace(self._project.get_WorkDirectory(),"").strip("\\")
+		if item:
+			assetName = item.text(0)
+			assetContainer = self.get_selectedAssetContainer()
+			publish_dialog = PublishGameDialog(
+						assetType=assetType,
+						assetContainer=assetContainer,
+						assetSpace=assetSpace,
+						assetName=assetName,
+						filePath=file_path)
+
+			if publish_dialog.exec_() == publish_dialog.Accepted:
+				result = publish_dialog.publish_asset()
+				if result:
+					publish_dialog.print_logs()
+
+	def save_file(self):
+		save_Scene()
+
+	def saveplus_file(self):
+		workdir = self._project.get_WorkDirectory()
+		assetType = self.assetType_combo.currentText()
+		assetSpace = self.get_selectedAssetSpace()
+		if assetSpace:
+			assetContainer = self.get_selectedAssetContainer()
+
+			if workdir and assetType and assetSpace and assetContainer:
+				dirPath = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace))
+				if os.path.isdir(dirPath):
+					assetItem = self.get_selectedAssetContainerItem()
+
+					if assetItem:
+						assetName = assetItem.text(0)
+						index = self.assetSpace_filter.mapToSource(self.assetSpace_list.currentIndex())
+						file_path = self.assetSpace_model.filePath(index)
+						print(os.path.basename(file_path))
+
+
+						all_files = os.walk(dirPath).next()[2]
+						nameTemp = "{}_".format(assetName)
+						versions = list()
+						for each in all_files:
+							if each.startswith(nameTemp):
+								raw_name, extension = os.path.splitext(each)
+								extra = raw_name.replace(nameTemp,"")
+								if extra.isdigit():
+									versions.append(int(extra))
+						if versions:
+							newVersion = max(versions)+1
+						else:
+							newVersion = 1
+						newFileName = "{}_{:03d}".format(assetName,newVersion)
+
+						set_MayaProject(directory=dirPath)
+						rename_Scene(name="{}.ma".format(newFileName))
+						save_Scene()
+
+						Pipeline().set_AssetType(assetType)
+						Pipeline().set_AssetContainer(assetContainer)
+						Pipeline().set_AssetSpace(assetSpace)
+						Pipeline().set_AssetName(assetName)
+						self.onUpdate.emit()
+						self.reload_assetWorkspaceList()
+
 	def assetSpace_doubleclicked(self):
 		fileName = self.assetSpace_list.currentIndex().data()
 		if fileName.lower().endswith(".ma"):
@@ -438,39 +578,53 @@ class AssetLoaderWidget(QWidget):
 	def create_scene(self):
 		workdir = self._project.get_WorkDirectory()
 		assetType = self.assetType_combo.currentText()
-		assetSpace = self.assetSpace_combo.currentText()
-		assetContainer = self.get_selectedAssetContainer()
-		assetName = self.assetContainer_list.currentIndex().data()
+		assetSpace = self.get_selectedAssetSpace()
+		if assetSpace:
+			assetContainer = self.get_selectedAssetContainer()
+			assetItem = self.get_selectedAssetContainerItem()
 
-		dirPath = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace))
-		print(dirPath)
+			if assetItem:
+				assetName = assetItem.text(0)
+				dirPath = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace))
+				print(dirPath)
 
-		all_files = os.walk(dirPath).next()[2]
-		nameTemp = "{}_".format(assetName)
-		versions = list()
-		for each in all_files:
-			if each.startswith(nameTemp):
-				raw_name, extension = os.path.splitext(each)
-				extra = raw_name.replace(nameTemp,"")
-				if extra.isdigit():
-					versions.append(int(extra))
-		if versions:
-			newVersion = max(versions)+1
-		else:
-			newVersion = 1
-		newFileName = "{}_{:03d}".format(assetName,newVersion)
+				all_files = os.walk(dirPath).next()[2]
+				nameTemp = "{}_".format(assetName)
+				versions = list()
+				for each in all_files:
+					if each.startswith(nameTemp):
+						raw_name, extension = os.path.splitext(each)
+						extra = raw_name.replace(nameTemp,"")
+						if extra.isdigit():
+							versions.append(int(extra))
+				if versions:
+					newVersion = max(versions)+1
+				else:
+					newVersion = 1
+				newFileName = "{}_{:03d}".format(assetName,newVersion)
 
-		create_EmptyScene()
-		set_MayaProject(directory=dirPath)
-		rename_Scene(name="{}.ma".format(newFileName))
-		save_Scene()
+				if isSceneModified():
+					saveCheck = QMessageBox()
+					result = saveCheck.warning(self,'Save Changes', "Save changes to {}?".format(getCurrentSceneName()), QMessageBox.Save|QMessageBox.Discard|QMessageBox.Cancel)
+					if result == QMessageBox.Save:
+						save_Scene()
+					elif result == QMessageBox.Cancel:
+						return
+				set_worldspace()
+				create_EmptyScene()
+				set_worldspace()
+				set_MayaProject(directory=dirPath)
+				rename_Scene(name="{}.ma".format(newFileName))
+				set_defaultSceneSettings()
+				default_grid()
+				save_Scene()
 
-		Pipeline().set_AssetType(assetType)
-		Pipeline().set_AssetContainer(assetContainer)
-		Pipeline().set_AssetSpace(assetSpace)
-		Pipeline().set_AssetName(assetName)
-		self.onUpdate.emit()
-		self.reload_assetWorkspaceList()
+				Pipeline().set_AssetType(assetType)
+				Pipeline().set_AssetContainer(assetContainer)
+				Pipeline().set_AssetSpace(assetSpace)
+				Pipeline().set_AssetName(assetName)
+				self.onUpdate.emit()
+				self.reload_assetWorkspaceList()
 
 	def browse_workspace_file(self):
 		if self.assetSpace_list.currentIndex().row() >= 0:
@@ -485,49 +639,62 @@ class AssetLoaderWidget(QWidget):
 		self.reload_assetWorkspaceList()
 		
 	def reload_assetWorkspaceList(self):
-		itemModel = self.get_selectedAssetContainerItem()
-		if itemModel and not itemModel.hasChildren():
+		item = self.get_selectedAssetContainerItem()
+		if item:
 			assetContainer = self.get_selectedAssetContainer()
 			workdir = Pipeline().get_WorkDirectory()
 			assetType = self.assetType_combo.currentText()
-			assetSpace = self.assetSpace_combo.currentText()
-			assetPath = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace))
-			if os.path.isdir(assetPath):
-				self.assetSpace_model = QFileSystemModel()
-				# self.assetSpace_model.setFilter(QDir.NoDotAndDotDot | QDir.Dirs)
-				self.assetSpace_filter.setSourceModel(self.assetSpace_model)
-				# self.assetSpace_filter.setFilterRegExp(r"^([^.])$")
-				self.assetSpace_list.setModel(self.assetSpace_filter)
-				self.assetSpace_list.setRootIndex(self.assetSpace_filter.mapFromSource(self.assetSpace_model.setRootPath(assetPath)))
-				self.assetSpace_list.hideColumn(1)
-				self.assetSpace_list.hideColumn(2)
-				self.assetSpace_list.hideColumn(3)
-				self.assetSpace_list.setHeaderHidden(True)
-		else:
-			self.assetSpace_model = QStandardItemModel()
-			self.assetSpace_list.setModel(self.assetSpace_model)
+			assetSpace = self.get_selectedAssetSpace()
+			if assetSpace:
+				assetPath = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace))
+				if os.path.isdir(assetPath):
+					self.assetSpace_model = QFileSystemModel()
+					# self.assetSpace_model.setFilter(QDir.NoDotAndDotDot | QDir.Dirs)
+					self.assetSpace_filter.setSourceModel(self.assetSpace_model)
+					# self.assetSpace_filter.setFilterRegExp(r"^([^.])$")
+					self.assetSpace_list.setModel(self.assetSpace_filter)
+					self.assetSpace_list.setRootIndex(self.assetSpace_filter.mapFromSource(self.assetSpace_model.setRootPath(assetPath)))
+					self.assetSpace_list.hideColumn(1)
+					self.assetSpace_list.hideColumn(2)
+					self.assetSpace_list.hideColumn(3)
+					self.assetSpace_list.setHeaderHidden(True)
+					return
+		# in case everything failed
+		self.assetSpace_model = QStandardItemModel()
+		self.assetSpace_list.setModel(self.assetSpace_model)
 
 	def get_selectedAssetContainerItem(self):
-		'''get selected QStandardItem
+		'''get selected AssetContainer
 
 			Return:
-				(QStandardItem): True if exists, otherwise False.
+				(QTreeWidgetItem): True if exists, otherwise False.
 		'''
-		currentAssetIndex = self.assetContainer_list.currentIndex()
-		source_index = self.assetContainer_filter.mapToSource(currentAssetIndex)
-		return self.assetContainer_model.itemFromIndex(source_index)
+		item = self.assetContainer_list.currentItem()
+		if not item or item.childCount() > 0:
+			return None
+		return item
+
+	def get_selectedAssetSpace(self):
+		item = self.assetContainer_list.currentItem()
+		if item:
+			itemWidget = self.assetContainer_list.itemWidget(item,1)
+			if itemWidget and type(itemWidget) is type(AssetSpaceCombo()):
+				return itemWidget.currentText()
+		return None
 
 	def get_selectedAssetContainer(self):
 		'''get select asset path'''
-		def collect_name(item=QStandardItem):
-			item_parent = item.parent()
-			if item_parent:
-				name = item.text()
-				return os.path.normpath(os.path.join(collect_name(item=item_parent), name))
+		def collect_names(file_path=str(), item=QTreeWidgetItem):
+			if item.parent():
+				return collect_names(file_path=os.path.join(item.text(0),file_path),item=item.parent())
 			else:
-				return item.text()
-		itemModel = self.get_selectedAssetContainerItem()
-		return collect_name(item=itemModel)
+				return os.path.normpath(os.path.join(item.text(0),file_path))
+
+		item = self.assetContainer_list.currentItem()
+		if item.parent():
+			return collect_names(item=item)
+		else:
+			return item.text(0)
 		
 	def reload_assetTypes(self):
 		'''Reload the Asset Type'''
@@ -541,16 +708,6 @@ class AssetLoaderWidget(QWidget):
 					assetTPath = os.path.normpath(os.path.join(assetType_dir,assetT))
 					if os.path.isdir(assetTPath):
 						self.assetType_combo.addItem(assetT)
-	
-	def reload_assetSpace(self):
-		if self._project:
-			self.assetSpace_combo.clear()
-			assetTypeName = self.assetType_combo.currentText()
-			assetTypes = self._project.get_AssetTypes()
-			if assetTypeName in assetTypes.keys():
-				assetSpaces = assetTypes[assetTypeName]
-				for assetS in assetSpaces:
-					self.assetSpace_combo.addItem(assetS[ProjectKeys.AssetSpace])
 
 	def reload_assetContainerList(self):
 		'''Reload the assets'''
@@ -571,12 +728,28 @@ class AssetLoaderWidget(QWidget):
 			else:
 				return
 
-		def make_child_StandardItem(data=dict , item=QStandardItem):
+		def make_child_TreeWidgetItem(data=dict , item=QTreeWidgetItem):
 			if data:
 				for name in data.keys():
-					newitem = QStandardItem(name)
-					item.appendRow(newitem)
-					make_child_StandardItem(data=data[name], item=newitem)
+					newitem = QTreeWidgetItem(item,[name])
+					make_child_TreeWidgetItem(data=data[name], item=newitem)
+			else:
+				assetTypeName = self.assetType_combo.currentText()
+				assetTypes = self._project.get_AssetTypes()
+				# ComboBox Options
+				option_list = list()
+				if assetTypeName in assetTypes.keys():
+					assetSpaces = assetTypes[assetTypeName]
+					for assetS in assetSpaces:
+						option_list.append(assetS[ProjectKeys.AssetSpace])
+
+				column_combo = AssetSpaceCombo()
+				column_combo.setFocusPolicy(Qt.StrongFocus)
+				column_combo.addItems(option_list)
+				column_combo.currentIndexChanged.connect(self.assetSpace_ComboIndexChanged)
+				self.assetContainer_list.setItemWidget(item, 1, column_combo)
+
+		self.assetContainer_list.clear()
 
 		# workfile directory
 		workDir = os.path.normpath(Pipeline().get_WorkDirectory())
@@ -585,30 +758,52 @@ class AssetLoaderWidget(QWidget):
 		if assetTypeName:
 			assetTypeDir = os.path.normpath(os.path.join(workDir,assetTypeName))
 
-			assetSpaceName = self.assetSpace_combo.currentText()
-			self.assetContainer_model.clear()
-			files_dict = {}
-			dir_collection = list()
-			for root, dirs, files in os.walk(assetTypeDir):
-				if assetSpaceName in dirs:
-					assetContainer = root.replace(assetTypeDir, "")
-					dir_collection.append(assetContainer[1:])
-			# cleaning up dir
-			new_collection = dirs_to_dict(list_dir = dir_collection)
-			
-			# create QStandardItem 
-			for name in new_collection.keys():
-				parent_item = QStandardItem(name)
-				self.assetContainer_model.appendRow(parent_item)
-				make_child_StandardItem(data=new_collection[name] , item=parent_item)
+			assetTypes = self._project.get_AssetTypes()
+			if assetTypeName in assetTypes.keys():
+				assetSpaces = assetTypes[assetTypeName]
+				
+				if len(assetSpaces) > 0:
+					assetSpaceName = assetSpaces[0][ProjectKeys.AssetSpace]
 
-			self.assetContainer_model.sort(Qt.AscendingOrder)
+					files_dict = {}
+					dir_collection = list()
+					for root, dirs, files in os.walk(assetTypeDir):
+						if assetSpaceName in dirs:
+							assetContainer = root.replace(assetTypeDir, "")
+							dir_collection.append(assetContainer[1:])
+					# cleaning up dir
+					new_collection = dirs_to_dict(list_dir = dir_collection)
+					
+					# create QStandardItem 
+					for name in new_collection.keys():
+						item = QTreeWidgetItem(self.assetContainer_list,[name])
+						make_child_TreeWidgetItem(data=new_collection[name] , item=item)
+
+			self.assetContainer_list.sortItems(0, Qt.AscendingOrder)
 
 	def filter_AssetContainer(self, text=str):
-		self.assetContainer_filter.setFilterFixedString(self.asset_search.text())
+		print("Not Implemented!")
+		# self.assetContainer_filter.setFilterFixedString(self.asset_search.text())
+		return
 
 	def set_project(self, project=ProjectMeta):
 		self._project = project
+
+	def assetSpace_ComboIndexChanged(self, index=int):
+		item = self.assetContainer_list.currentItem()
+		if item:
+			assetSpaceName = self.sender().currentText()
+			self.reload_assetWorkspaceList()
+
+	def set_SceneDefaults(self):
+		set_worldspace()
+		set_defaultSceneSettings()
+
+	def toggle_grids(self):
+		if is_custom_grid():
+			default_grid()
+		else:
+			show_grid()
 
 class AssetTreeView(QTreeView):
 	OnDoubleClick = Signal()
@@ -650,3 +845,9 @@ class Asset_Dialog(QDialog):
 	def get_AssetContainer(self):
 		return self.name_in.text()
 	AssetContainer = property(get_AssetContainer)
+
+class AssetSpaceCombo(QComboBox):
+	def __init__(self):
+		super(AssetSpaceCombo, self).__init__()
+	def wheelEvent(self, event=QWheelEvent):
+		return True

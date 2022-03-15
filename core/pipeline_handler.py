@@ -98,3 +98,17 @@ class Pipeline(object):
 		'''
 		set_Env(key_name=HandsFreeENV.WORK_DIR, value_name=directory)
 
+	def get_PublishDirectory(self):
+		'''Get the publish directory from environment variables.
+
+			Return:
+				(str): Path to publish directory.
+		'''
+		return get_Env(HandsFreeENV.PUBLISH_DIR)
+	def set_PublishDirectory(self, directory=str):
+		'''Set the publish directory in environment variables.
+
+			Args:
+				directory (str): Path to publish directory.
+		'''
+		set_Env(key_name=HandsFreeENV.PUBLISH_DIR, value_name=directory)
