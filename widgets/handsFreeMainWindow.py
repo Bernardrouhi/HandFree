@@ -45,7 +45,7 @@ class HandsFreeMainWindow(QMainWindow):
 		self.infoDock.setWidget(self.projectInfo)
 		# self.infoDock.setTitleBarWidget(QWidget(self.infoDock))
 		self.addDockWidget(Qt.LeftDockWidgetArea, self.infoDock)
-		self.infoDock.setVisible(True)
+		self.infoDock.setVisible(False)
 
 		# Asset Loader Tab
 		self.assetLoader = AssetLoaderWidget(edit=edit, project=self._project)
@@ -138,10 +138,13 @@ class HandsFreeMainWindow(QMainWindow):
 			self._project.load(ProjectFile=file_path)
 
 	def export_asset(self):
+		print ("Not implemented.")
+		return
 		export_Dialog = ExportDialog(project=self._project)
 
 		if export_Dialog.exec_() == QDialog.Accepted:
 			print("OKAY")
 
 	def import_asset(self):
+		print ("Not implemented.")
 		pass

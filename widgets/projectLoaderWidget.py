@@ -1,4 +1,4 @@
-import os, subprocess
+import os, subprocess, shutil
 from PySide2.QtWidgets import (QWidget, QComboBox, QVBoxLayout, QHBoxLayout,
 								QSizePolicy, QLabel, QLineEdit, QSpacerItem,
 								QListView, QMenu, QPushButton, QDialog, QGridLayout,
@@ -10,11 +10,13 @@ from PySide2.QtGui import (QStandardItemModel, QStandardItem, QMouseEvent, QWhee
 from PySide2.QtCore import (Qt, Signal, QEvent, QPoint, QSortFilterProxyModel,
 							QItemSelection, QDir, QModelIndex)
 from dialogs import publishAssetDialog
+from dialogs import publishViewerDialog
 from  ..core import pipeline_handler, mayaHelper, projectMetadata
 
 reload(mayaHelper)
 reload(pipeline_handler)
 reload(publishAssetDialog)
+reload(publishViewerDialog)
 
 from ..core.pipeline_handler import Pipeline
 from ..core.mayaHelper import (open_scene, set_MayaProject, create_EmptyScene,
@@ -24,6 +26,7 @@ from ..core.mayaHelper import (open_scene, set_MayaProject, create_EmptyScene,
 								set_defaultSceneSettings, show_grid, default_grid, is_custom_grid)
 from ..core.projectMetadata import ProjectMeta, ProjectKeys, AssetSpaceKeys
 from dialogs.publishAssetDialog import PublishDialog, PublishGameDialog
+from dialogs.publishViewerDialog import PublishViewerDialog
 
 class AssetLoaderWidget(QWidget):
 	'''Manage project assets'''
@@ -56,33 +59,14 @@ class AssetLoaderWidget(QWidget):
 		self.assetType_combo = QComboBox()
 		self.assetType_combo.currentIndexChanged.connect(self.assetType_IndexChanged)
 		self.assetType_combo.setFixedWidth(150)
+		published_assets = QPushButton("Get Published File")
+		published_assets.clicked.connect(self.show_publishedDialog)
 
 		assetTypeLayout.addWidget(assetTypeLabel)
 		assetTypeLayout.addWidget(self.assetType_combo)
+		assetTypeLayout.addWidget(published_assets)
 
 		main_layout.addLayout(assetTypeLayout)
-
-		# ------- Row -------
-		# ----------------------------------------
-		assetsLayout = QHBoxLayout()
-		assetsLayout.setContentsMargins(0,0,0,0)
-		assetsLayout.setSpacing(3)
-		assetsLayout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
-
-		assetLabel = QLabel("")
-		assetLabel.setFixedWidth(65)
-		assetLabel.setAlignment(Qt.AlignTop|Qt.AlignRight)
-		self.asset_search = QLineEdit()
-		self.asset_search.textChanged.connect(self.filter_AssetContainer)
-		asset_btn = QPushButton("New")
-		asset_btn.clicked.connect(self.show_AssetCreationDialog)
-		asset_btn.setVisible(self._edit)
-
-		assetsLayout.addWidget(assetLabel)
-		assetsLayout.addWidget(self.asset_search)
-		assetsLayout.addWidget(asset_btn)
-
-		main_layout.addLayout(assetsLayout)
 
 		# ------- Row -------
 		# ----------------------------------------
@@ -170,6 +154,12 @@ class AssetLoaderWidget(QWidget):
 
 		self.reload_assetTypes()
 
+	def show_publishedDialog(self):
+		publishViewDialog = PublishViewerDialog(project=self._project)
+		publishViewDialog.onWorkfileChanged.connect(self.reload_assetContainerList)
+		if publishViewDialog.exec_() == QDialog.Accepted:
+			print ("Done")
+
 	def show_AssetCreationDialog(self):
 		assetTypeDialog = Asset_Dialog(title = "New Asset Name")
 		if assetTypeDialog.exec_() == QDialog.Accepted:
@@ -206,32 +196,44 @@ class AssetLoaderWidget(QWidget):
 		self.reload_assetContainerList()
 
 	def assetMenu(self, point=QPoint):
+		self.assetTMenu = QMenu()
+		
+		newAsset_action = QAction("Create Asset", self)
+		newAsset_action.setStatusTip('Create a new Asset in workspace.')
+		newAsset_action.triggered.connect(self.show_AssetCreationDialog)
+		self.assetTMenu.addAction(newAsset_action)
+
 		if self.assetContainer_list.selectedIndexes():
-			self.assetTMenu = QMenu()
 			
 			item = self.get_selectedAssetContainerItem()
+
+			self.assetTMenu.addSeparator()
 
 			browse_action = QAction("Browse Work Folder", self)
 			browse_action.setStatusTip('Browse into asset directory.')
 			browse_action.triggered.connect(self.browse_asset_directory)
 			self.assetTMenu.addAction(browse_action)
 
-			if item:
-				log_action = QAction("View Publish Logs", self)
-				log_action.setStatusTip('View published files histories.')
-				log_action.triggered.connect(self.view_published_logs)
-				self.assetTMenu.addAction(log_action)
+			# if item:
+			# 	log_action = QAction("View Publish Logs", self)
+			# 	log_action.setStatusTip('View published files histories.')
+			# 	log_action.triggered.connect(self.view_published_logs)
+			# 	self.assetTMenu.addAction(log_action)
 
 			self.assetTMenu.addSeparator()
 
 			if item:
+				assetSpace = self.get_selectedAssetSpace()
+
 				new_action = QAction("Create a new Scene", self)
 				new_action.setStatusTip('Create a new scene.')
 				new_action.triggered.connect(self.create_scene)
 				self.assetTMenu.addAction(new_action)
 
-				# list of published files
-				self.assetTMenu.addMenu(self.get_published_files())
+				# self.assetTMenu.addSection(assetSpace)
+				# # list of published files
+				# self.assetTMenu.addMenu(self.get_copy_PublishedFile_Menu())
+				# self.assetTMenu.addMenu(self.get_reference_PublishedFile_Menu())
 
 				self.assetTMenu.addSeparator()
 
@@ -240,12 +242,12 @@ class AssetLoaderWidget(QWidget):
 			fix_action.triggered.connect(self.fix_assetSpace)
 			self.assetTMenu.addAction(fix_action)
 
-			self.assetTMenu.move(self.assetContainer_list.viewport().mapToGlobal(point))
-			self.assetTMenu.show()
+		self.assetTMenu.move(self.assetContainer_list.viewport().mapToGlobal(point))
+		self.assetTMenu.show()
 
-	def get_published_files(self):
+	def get_reference_PublishedFile_Menu(self):
 		publishMenu = QMenu()
-		publishMenu.setTitle("Create Reference")
+		publishMenu.setTitle('Create Reference')
 		publishMenu.setStatusTip("Create Reference from published files.")
 
 		publish_path = self.get_published_directory()
@@ -264,6 +266,52 @@ class AssetLoaderWidget(QWidget):
 		publishMenu.addAction(new_action)
 
 		return publishMenu
+
+	def get_copy_PublishedFile_Menu(self):
+		publishMenu = QMenu()
+		publishMenu.setTitle('Copy to Workdirectory')
+		publishMenu.setStatusTip("Copy publish file into workdirectory.")
+
+		publish_path = self.get_published_directory()
+		if os.path.exists(publish_path):
+			for each in os.walk(publish_path).next()[2]:
+				if each.lower().endswith((".ma",".mb")):
+					new_action = QAction(each, publishMenu)
+					new_action.triggered.connect(self.copy_publish_to_workdirectory)
+					publishMenu.addAction(new_action)
+		#None
+		new_action = QAction("...", publishMenu)
+		new_action.setDisabled(True)
+		# new_action.setStatusTip('Create a new scene.')
+		# new_action.triggered.connect(self.create_scene)
+
+		publishMenu.addAction(new_action)
+
+		return publishMenu
+
+	def copy_publish_to_workdirectory(self):
+		publish_path = self.get_published_directory()
+		fileName = self.sender().text()
+		published_file = os.path.join(publish_path,fileName)
+
+		work_path = ""
+		work_path = self._project.get_WorkDirectory()
+		assetType = self.assetType_combo.currentText()
+		assetSpace = self.get_selectedAssetSpace()
+		if assetSpace:
+			assetContainer = self.get_selectedAssetContainer()
+			assetName = self.get_selectedAssetContainerItem().text(0)
+			work_path = os.path.join(work_path,assetType,assetContainer,assetSpace)
+		
+		if os.path.exists(publish_path):
+			print(publish_path)
+		if os.path.exists(work_path):
+			print(work_path)
+
+		new_workfile = os.path.join(work_path, "Published_{}".format(fileName))
+
+		shutil.copy(published_file, new_workfile)
+
 
 	def create_reference(self):
 		publish_path = self.get_published_directory()
@@ -336,12 +384,18 @@ class AssetLoaderWidget(QWidget):
 
 				self.newMenu.addSeparator()
 
-				# Have to get from publish directory
-				reference_action = QAction("Create Reference", self)
-				reference_action.setStatusTip('Create a reference of this file in the scene.')
-				reference_action.triggered.connect(self.reference_file)
-				reference_action.setDisabled(True)
-				self.newMenu.addAction(reference_action)
+				# # Have to get from publish directory
+				# reference_action = QAction("Create Reference", self)
+				# reference_action.setStatusTip('Create a reference of this file in the scene.')
+				# reference_action.triggered.connect(self.reference_file)
+				# reference_action.setDisabled(True)
+				# self.newMenu.addAction(reference_action)
+
+				# fixReference_action = QAction("Fix References...", self)
+				# fixReference_action.setStatusTip('Fix references within the file.')
+				# fixReference_action.triggered.connect(self.fix_references)
+				# fixReference_action.setDisabled(True)
+				# self.newMenu.addAction(fixReference_action)
 
 				import_action = QAction("Import to...", self)
 				import_action.setStatusTip('Import the file into the scene.')
@@ -387,6 +441,9 @@ class AssetLoaderWidget(QWidget):
 			raw_name, extension = os.path.splitext(fileName)
 			groupName = "{}_grp".format(raw_name)
 			reference_FileToScene(file_path=file_path,group_name=groupName,namespace_name=raw_name)
+
+	def fix_references(self):
+		pass
 
 	def import_file(self):
 		workdir = Pipeline().get_WorkDirectory()

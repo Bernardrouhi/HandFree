@@ -142,6 +142,15 @@ class ProjectMeta(QObject):
 	def set_assetType(self, assetType=str, assetSpaceList=list):
 		self._data[ProjectKeys.AssetTypes][assetType] = assetSpaceList
 
+	def get_AssetSpaces(self, assetType=str()):
+		assetSpaces = list()
+		assetTypes = self.get_AssetTypes()
+		if assetType in assetTypes:
+			for each in assetTypes[assetType]:
+				assetSpaces.append(each[ProjectKeys.AssetSpace])
+
+		return assetSpaces
+
 	def update_settings(self, project_name=str, work_directory=str):
 		'''update all the settings.
 

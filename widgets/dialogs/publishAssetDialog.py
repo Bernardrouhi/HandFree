@@ -412,10 +412,16 @@ class PublishDialog(PublishCore):
 		if os.path.exists(self._project.get_PublishDirectory()):
 			self._publish.create_new_log(
 				username=self.user_in.text(),
-				workfile=self._workFile,
-				assetName=self.publishFile_txt.text(),
+				workfiles=[self._workFile],
+				publishfiles=[self.publishFile_txt.text()],
 				app=get_MayaVersion(),
 				description="Auto Publish by HandsFree")
+			self._publish.set_PublishNode(
+				assetType=self._assetType,
+				assetContainer=self._assetContainer,
+				assetSpace=self._assetSpace,
+				assetName=self._assetName
+			)
 			publish_path = self.get_publish_directory()
 			if not os.path.exists(publish_path):
 				os.makedirs(publish_path)
@@ -429,6 +435,7 @@ class PublishGameDialog(PublishCore):
 	def __init__(self, **kw):
 		super(PublishGameDialog, self).__init__(**kw)
 		self._assetSpace = "{}_Game".format(self._assetSpace)
+		self._publishDirectory = self.get_publish_relativePath()
 
 		self.setFixedSize(500, 400)
 
@@ -529,10 +536,17 @@ class PublishGameDialog(PublishCore):
 		if os.path.exists(self._project.get_PublishDirectory()):
 			self._publish.create_new_log(
 				username=self.user_in.text(),
-				workfile=self._workFile,
-				assetName=self.publishFile_txt.text(),
+				workfiles=[self._workFile],
+				publishfiles=[self.publishFile_txt.text()],
 				app=get_MayaVersion(),
-				description="Auto Publish by HandsFree")
+				description="Auto Publish by HandsFree"
+			)
+			self._publish.set_PublishNode(
+				assetType=self._assetType,
+				assetContainer=self._assetContainer,
+				assetSpace=self._assetSpace,
+				assetName=self._assetName
+			)
 			publish_path = self.get_publish_directory()
 			if not os.path.exists(publish_path):
 				os.makedirs(publish_path)
