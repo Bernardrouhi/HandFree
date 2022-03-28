@@ -3,7 +3,7 @@ from PySide2.QtWidgets import (QWidget, QComboBox, QVBoxLayout, QHBoxLayout,
 								QSizePolicy, QLabel, QLineEdit, QSpacerItem,
 								QListView, QMenu, QPushButton, QDialog, QGridLayout,
 								QAction, QFileSystemModel, QAbstractItemView,
-								QTreeView, QListWidget, QSpinBox, QTreeView,
+								QTreeView, QSpinBox, QTreeView,
 								QHeaderView, QTreeWidget, QTreeWidgetItem, 
 								QWidgetAction,QMessageBox)
 from PySide2.QtGui import (QStandardItemModel, QStandardItem, QMouseEvent, QWheelEvent)

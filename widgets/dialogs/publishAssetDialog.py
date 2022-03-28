@@ -2,7 +2,8 @@ import os, getpass, json, re, shutil
 from PySide2.QtWidgets import (QAction, QFileDialog, QListWidget, QMenu, QSizePolicy,
 						  QAbstractItemView, QTableWidget,QHeaderView, QHBoxLayout,
 						  QTableWidgetItem, QComboBox, QDialog, QVBoxLayout, QLabel,
-						  QLineEdit, QPushButton, QGroupBox)
+						  QLineEdit, QPushButton, QGroupBox, QStackedLayout, QFrame,
+						  QCheckBox, QTabWidget, QWidget)
 from PySide2.QtGui import (QRegExpValidator)
 from PySide2.QtCore import (Qt, QPoint, QRegExp)
 
@@ -196,6 +197,7 @@ class PublishCore(QDialog):
 
 	def get_PublishInformation(self):
 		asset_grp = QGroupBox("Publish Asset")
+
 		assetgrp_layout = QVBoxLayout()
 		assetgrp_layout.setContentsMargins(5,5,5,5)
 		assetgrp_layout.setSpacing(3)
@@ -239,6 +241,23 @@ class PublishCore(QDialog):
 
 		# ------- Row -------
 		# ----------------------------------------
+		publishVariant_layout = QHBoxLayout()
+		publishVariant_layout.setContentsMargins(0,0,0,0)
+		publishVariant_layout.setSpacing(3)
+		publishVariant_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+
+		publishVariant_label = QLabel('Variant:')
+		publishVariant_label.setAlignment(Qt.AlignRight|Qt.AlignCenter)
+		publishVariant_label.setFixedWidth(100)
+		self.publishVariant_txt = QLabel('')
+
+		publishVariant_layout.addWidget(publishVariant_label)
+		publishVariant_layout.addWidget(self.publishVariant_txt)
+
+		assetgrp_layout.addLayout(publishVariant_layout)
+
+		# ------- Row -------
+		# ----------------------------------------
 		publishFile_layout = QHBoxLayout()
 		publishFile_layout.setContentsMargins(0,0,0,0)
 		publishFile_layout.setSpacing(3)
@@ -253,6 +272,21 @@ class PublishCore(QDialog):
 		publishFile_layout.addWidget(self.publishFile_txt)
 
 		assetgrp_layout.addLayout(publishFile_layout)
+
+		return asset_grp
+
+	def get_PublishedVariants(self):
+
+		# ------- Row -------
+		# ----------------------------------------
+		variant_layout = QHBoxLayout()
+		variant_layout.setContentsMargins(0,0,0,0)
+		variant_layout.setSpacing(3)
+		variant_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+
+		self.variant_list = QListWidget()
+
+		variant_layout.addWidget(self.variant_list)
 
 		return asset_grp
 
@@ -295,14 +329,14 @@ class PublishCore(QDialog):
 		pass
 	
 	def print_logs(self):
-		print (json.dumps(self._publish.get_logs(), indent=4))
+		print (json.dumps(self._publish.get_data(), indent=4))
 
 class PublishDialog(PublishCore):
 	def __init__(self, **kw):
 		super(PublishDialog, self).__init__(**kw)
 		self._version = 1
 
-		self.setFixedSize(500, 380)
+		self.setFixedSize(500, 500)
 
 		main_layout = QVBoxLayout(self)
 		main_layout.setContentsMargins(5,5,5,5)
@@ -328,18 +362,56 @@ class PublishDialog(PublishCore):
 
 		# ------- Row -------
 		# ----------------------------------------
+		new_layout = QHBoxLayout()
+		new_layout.setContentsMargins(0,0,0,0)
+		new_layout.setSpacing(3)
+		new_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+
+		new_label = QLabel('')
+		new_label.setAlignment(Qt.AlignRight|Qt.AlignCenter)
+		new_label.setFixedWidth(100)
+		self.new_check = QCheckBox("New Variant?")
+
+		new_layout.addWidget(new_label)
+		new_layout.addWidget(self.new_check)
+
+		publishgrp_layout.addLayout(new_layout)
+
+		# ------- Row -------
+		# ----------------------------------------
 		variant_layout = QHBoxLayout()
 		variant_layout.setContentsMargins(0,0,0,0)
 		variant_layout.setSpacing(3)
 		variant_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
 
 		variant_label = QLabel('Variant Name:')
-		variant_label.setAlignment(Qt.AlignRight|Qt.AlignCenter)
+		variant_label.setAlignment(Qt.AlignRight|Qt.AlignTop)
 		variant_label.setFixedWidth(100)
+		
+		# Widget 1
+		widget1 = QWidget()
+		widget_layout = QHBoxLayout()
+		widget_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+		widget_layout.setContentsMargins(0,0,0,0)
+		widget_layout.setSpacing(3)
 		self.variant_in = QLineEdit()
 		self.variant_in.textChanged.connect(self.update_fileName)
+		widget_layout.addWidget(self.variant_in)
+		widget1.setLayout(widget_layout)
+		# Widget 2
+		self.variant_list = QListWidget()
+		self.variant_list.itemClicked.connect(self.variant_Selected)
+
+		self.stackedLayout = QStackedLayout()
+		self.stackedLayout.addWidget(self.variant_list)
+		self.stackedLayout.addWidget(widget1)
+
+		frame = QFrame()
+		frame.setMinimumHeight(10)
+		frame.setLayout(self.stackedLayout)
+		
 		variant_layout.addWidget(variant_label)
-		variant_layout.addWidget(self.variant_in)
+		variant_layout.addWidget(frame)
 
 		publishgrp_layout.addLayout(variant_layout)
 
@@ -380,21 +452,27 @@ class PublishDialog(PublishCore):
 
 		self.setWindowTitle("Publish Asset")
 
+		self.new_check.stateChanged.connect(self.switch_stack)
+
 		self.load_publishFile()
 
 	def update_fileName(self, name=str):
 		variant_txt = re.sub("\W",'', name)
 		if variant_txt:
-			self.publishFile_txt.setText("{Name}_{Variant}_{Version:02d}{Extention}".format(
+			self.publishFile_txt.setText("{Name}_{Variant}_{Version:03d}{Extention}".format(
 														Name=self._assetName, 
 														Variant=variant_txt, 
 														Version=self._version, 
 														Extention=self._extension))
+			self.publishVariant_txt.setText("{Name}_{Variant}".format(
+														Name=self._assetName, 
+														Variant=variant_txt))
 		else:
-			self.publishFile_txt.setText("{Name}_{Version:02d}{Extention}".format(
+			self.publishFile_txt.setText("{Name}_{Version:03d}{Extention}".format(
 														Name=self._assetName, 
 														Version=self._version, 
 														Extention=self._extension))
+			self.publishVariant_txt.setText(self._assetName)
 
 	def load_publishFile(self):
 		'''Load the Publish file
@@ -407,11 +485,38 @@ class PublishDialog(PublishCore):
 		else:
 			self._version = 1
 		self.update_fileName(name="")
+		self.load_variants()
+
+	def switch_stack(self, state=bool):
+		if state:
+			self.stackedLayout.setCurrentIndex(1)
+			self.reload_filename()
+		else:
+			self.stackedLayout.setCurrentIndex(0)
+			self.variant_Selected()
+
+	def variant_Selected(self):
+		if self.variant_list.currentRow() >= 0:
+			selected = self.variant_list.currentItem().text()
+			self.publishFile_txt.setText("{Name}_{Version:03d}{Extention}".format(
+														Name=selected, 
+														Version=self._version, 
+														Extention=self._extension))
+			self.publishVariant_txt.setText(selected)
+
+	def reload_filename(self):
+		name = self.variant_in.text()
+		self.update_fileName(name=name)
+
+	def load_variants(self):
+		variants = self._publish.get_variants()
+		self.variant_list.addItems(variants)
 
 	def publish_asset(self):
 		if os.path.exists(self._project.get_PublishDirectory()):
 			self._publish.create_new_log(
 				username=self.user_in.text(),
+				variant=self.publishVariant_txt.text(),
 				workfiles=[self._workFile],
 				publishfiles=[self.publishFile_txt.text()],
 				app=get_MayaVersion(),
@@ -437,7 +542,7 @@ class PublishGameDialog(PublishCore):
 		self._assetSpace = "{}_Game".format(self._assetSpace)
 		self._publishDirectory = self.get_publish_relativePath()
 
-		self.setFixedSize(500, 400)
+		self.setFixedSize(500, 500)
 
 		main_layout = QVBoxLayout(self)
 		main_layout.setContentsMargins(5,5,5,5)
@@ -448,6 +553,7 @@ class PublishGameDialog(PublishCore):
 		main_layout.addWidget(self.get_AssetInformation())
 		main_layout.addWidget(self.get_WorkInformation())
 		main_layout.addWidget(self.get_PublishInformation())
+		# main_layout.addWidget(self.get_PublishedVariants())
 
 		# ------- Group -------
 		# ----------------------------------------
@@ -463,18 +569,56 @@ class PublishGameDialog(PublishCore):
 
 		# ------- Row -------
 		# ----------------------------------------
+		new_layout = QHBoxLayout()
+		new_layout.setContentsMargins(0,0,0,0)
+		new_layout.setSpacing(3)
+		new_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+
+		new_label = QLabel('')
+		new_label.setAlignment(Qt.AlignRight|Qt.AlignCenter)
+		new_label.setFixedWidth(100)
+		self.new_check = QCheckBox("New Variant?")
+
+		new_layout.addWidget(new_label)
+		new_layout.addWidget(self.new_check)
+
+		publishgrp_layout.addLayout(new_layout)
+
+		# ------- Row -------
+		# ----------------------------------------
 		variant_layout = QHBoxLayout()
 		variant_layout.setContentsMargins(0,0,0,0)
 		variant_layout.setSpacing(3)
 		variant_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
 
 		variant_label = QLabel('Variant Name:')
-		variant_label.setAlignment(Qt.AlignRight|Qt.AlignCenter)
+		variant_label.setAlignment(Qt.AlignRight|Qt.AlignTop)
 		variant_label.setFixedWidth(100)
+		
+		# Widget 1
+		widget1 = QWidget()
+		widget_layout = QHBoxLayout()
+		widget_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+		widget_layout.setContentsMargins(0,0,0,0)
+		widget_layout.setSpacing(3)
 		self.variant_in = QLineEdit()
 		self.variant_in.textChanged.connect(self.update_fileName)
+		widget_layout.addWidget(self.variant_in)
+		widget1.setLayout(widget_layout)
+		# Widget 2
+		self.variant_list = QListWidget()
+		self.variant_list.itemClicked.connect(self.variant_Selected)
+
+		self.stackedLayout = QStackedLayout()
+		self.stackedLayout.addWidget(self.variant_list)
+		self.stackedLayout.addWidget(widget1)
+
+		frame = QFrame()
+		frame.setMinimumHeight(10)
+		frame.setLayout(self.stackedLayout)
+		
 		variant_layout.addWidget(variant_label)
-		variant_layout.addWidget(self.variant_in)
+		variant_layout.addWidget(frame)
 
 		publishgrp_layout.addLayout(variant_layout)
 
@@ -515,6 +659,8 @@ class PublishGameDialog(PublishCore):
 
 		self.setWindowTitle("Publish Game Asset")
 
+		self.new_check.stateChanged.connect(self.switch_stack)
+
 		self.load_publishFile()
 
 	def update_fileName(self, name=str):
@@ -524,18 +670,46 @@ class PublishGameDialog(PublishCore):
 														Name=self._assetName, 
 														Variant=variant_txt,
 														Extention=self._extension))
+			self.publishVariant_txt.setText("{Name}_{Variant}".format(
+														Name=self._assetName, 
+														Variant=variant_txt))
 		else:
 			self.publishFile_txt.setText((self._assetName+self._extension))
+			self.publishVariant_txt.setText(self._assetName)
 
 	def load_publishFile(self):
 		publish_path = os.path.join(self.get_publish_directory(), PUBLISH_FILE)
 		self._publish.load(directory=publish_path)
 		self.update_fileName(name="")
+		self.load_variants()
+
+	def switch_stack(self, state=bool):
+		if state:
+			self.stackedLayout.setCurrentIndex(1)
+			self.reload_filename()
+		else:
+			self.stackedLayout.setCurrentIndex(0)
+			self.variant_Selected()
+
+	def variant_Selected(self):
+		if self.variant_list.currentRow() >= 0:
+			selected = self.variant_list.currentItem().text()
+			self.publishFile_txt.setText((selected+self._extension))
+			self.publishVariant_txt.setText(selected)
+	
+	def reload_filename(self):
+		name = self.variant_in.text()
+		self.update_fileName(name=name)
+
+	def load_variants(self):
+		variants = self._publish.get_variants()
+		self.variant_list.addItems(variants)
 
 	def publish_asset(self):
 		if os.path.exists(self._project.get_PublishDirectory()):
 			self._publish.create_new_log(
 				username=self.user_in.text(),
+				variant=self.publishVariant_txt.text(),
 				workfiles=[self._workFile],
 				publishfiles=[self.publishFile_txt.text()],
 				app=get_MayaVersion(),

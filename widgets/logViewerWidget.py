@@ -33,7 +33,7 @@ class LogViewerWidget(QWidget):
 		log_layout.setSpacing(3)
 		log_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
 
-		self.log_columns = [PublishLogKeys.VERSION, PublishLogKeys.USER, PublishLogKeys.WORKFILES, PublishLogKeys.PUBLISHFILES , PublishLogKeys.RECORD]
+		self.log_columns = [PublishLogKeys.VERSION, PublishLogKeys.VARIANT, PublishLogKeys.USER, PublishLogKeys.WORKFILES, PublishLogKeys.PUBLISHFILES , PublishLogKeys.RECORD]
 		self.log_table = QTableWidget(0, len(self.log_columns))
 		self.log_table.setHorizontalHeaderLabels(self.log_columns)
 		# self.log_table.cellChanged.connect(self.assetSpace_CellChanged)
@@ -65,27 +65,33 @@ class LogViewerWidget(QWidget):
 
 			self.log_table.setItem(index, 0, version_cell)
 
+			# Variant
+			variant_cell = QTableWidgetItem()
+			variant_cell.setText(str(log[PublishLogKeys.VARIANT]))
+
+			self.log_table.setItem(index, 1, variant_cell)
+
 			# User
 			user_cell = QTableWidgetItem()
 			user_cell.setText(str(log[PublishLogKeys.USER]))
 			
-			self.log_table.setItem(index, 1, user_cell)
+			self.log_table.setItem(index, 2, user_cell)
 
 			# Work File
 			workfile_cell = QTableWidgetItem()
 			workfile_cell.setText(str(log[PublishLogKeys.WORKFILES]))
 
-			self.log_table.setItem(index, 2, workfile_cell)
+			self.log_table.setItem(index, 3, workfile_cell)
 			
 			# Published File
 			published_cell = QTableWidgetItem()
 			published_cell.setText(str(log[PublishLogKeys.PUBLISHFILES]))
 
-			self.log_table.setItem(index, 3, published_cell)
+			self.log_table.setItem(index, 4, published_cell)
 			
 			# Date
 			date_cell = QTableWidgetItem()
 			date_cell.setText(str(log[PublishLogKeys.RECORD]))
 
-			self.log_table.setItem(index, 4, date_cell)
+			self.log_table.setItem(index, 5, date_cell)
 		
