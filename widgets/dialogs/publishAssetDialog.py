@@ -529,7 +529,7 @@ class PublishDialog(PublishCore):
 			publish_path = self.get_publish_directory()
 			if not os.path.exists(publish_path):
 				os.makedirs(publish_path)
-			copyProgress = CopyProgressDialog(source=self.get_workfile_path(), destination=self.get_publishfile_path())
+			copyProgress = CopyProgressDialog(self, source=self.get_workfile_path(), destination=self.get_publishfile_path())
 			if copyProgress.exec_() == copyProgress.Accepted:
 				self._publish.create_new_log(
 					username=self.user_in.text(),
@@ -728,7 +728,7 @@ class PublishGameDialog(PublishCore):
 			if not os.path.exists(publish_path):
 				os.makedirs(publish_path)
 			# Copy publish file
-			copyProgress = CopyProgressDialog(source=self.get_workfile_path(), destination=self.get_publishfile_path())
+			copyProgress = CopyProgressDialog(self, source=self.get_workfile_path(), destination=self.get_publishfile_path())
 			if copyProgress.exec_() == copyProgress.Accepted:
 				# create a new log
 				self._publish.create_new_log(

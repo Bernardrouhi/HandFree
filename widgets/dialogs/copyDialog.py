@@ -9,7 +9,7 @@ from PySide2.QtCore import (Qt, QPoint, QRegExp, QThread, Signal, QFile)
 
 class CopyProgressDialog(QDialog):
 	def __init__(self, parent=None, source=str, destination=str):
-		super(CopyProgressDialog, self).__init__(parent)
+		QDialog.__init__(self, parent)
 
 		self._Source = source
 		self._Destination = destination
@@ -57,9 +57,6 @@ class CopyProgressDialog(QDialog):
 		size_layout.addWidget(self.saved_size)
 
 		main_layout.addLayout(size_layout)
-
-		print (self._Sourcefile.size())
-
 
 		self.setWindowTitle("Copying file...")
 		self.copy()
