@@ -93,6 +93,7 @@ class PublishMeta(QObject):
 
 	def create_new_log(self, username=str, variant=str, workfiles=list, publishfiles=list, app=str, description=str):
 		newRecord = self.LOG_METADATA()
+		# check variant
 		self.create_variant(variant=variant)
 
 		nextVersion = self.get_variant_version(variant=variant) + 1
@@ -105,7 +106,6 @@ class PublishMeta(QObject):
 		newRecord[PublishLogKeys.RECORD] = str(datetime.now())
 		newRecord[PublishLogKeys.APP] = app
 		newRecord[PublishLogKeys.DESCRIPTION] = description
-		# check variant
 		
 		self._publish[PublishFileKeys.LOGS][variant].append(newRecord)
 		return newRecord
@@ -115,11 +115,16 @@ class PublishMeta(QObject):
 		items.sort()
 		return items
 
+	def has_variant(self, variant=str):
+		return variant in self._publish[PublishFileKeys.LOGS].keys()
+
 	def get_variant_logs(self, variant=str):
 		return self._publish[PublishFileKeys.LOGS][variant]
 
 	def get_variant_version(self, variant=str):
-		return len(self._publish[PublishFileKeys.LOGS][variant])
+		if self.has_variant(variant=variant):
+			return len(self._publish[PublishFileKeys.LOGS][variant])
+		return 0
 
 	def create_variant(self, variant=str):
 		if variant not in self._publish[PublishFileKeys.LOGS]:

@@ -552,9 +552,11 @@ class AssetLoaderWidget(QWidget):
 			if publish_dialog.exec_() == publish_dialog.Accepted:
 				result = publish_dialog.publish_asset()
 				if result:
-					publish_dialog.print_logs()
+					msg = QMessageBox()
+					msg.information(self, 'Published', '{} File is Published.'.format(publish_dialog.get_PublishedFile()), QMessageBox.Ok)
 				else:
-					print("Couldn't publish the file!")
+					msg = QMessageBox()
+					msg.critical(self, 'ERROR', "Couldn't publish the asset!", QMessageBox.Ok)
 
 	def publish_game_file(self):
 		assetType = self.assetType_combo.currentText()
@@ -577,7 +579,11 @@ class AssetLoaderWidget(QWidget):
 			if publish_dialog.exec_() == publish_dialog.Accepted:
 				result = publish_dialog.publish_asset()
 				if result:
-					publish_dialog.print_logs()
+					msg = QMessageBox()
+					msg.information(self, 'Published', '"{}" file is Published.'.format(publish_dialog.get_PublishedFile()), QMessageBox.Ok)
+				else:
+					msg = QMessageBox()
+					msg.critical(self, 'ERROR', "Couldn't publish the game asset!", QMessageBox.Ok)
 
 	def save_file(self):
 		save_Scene()

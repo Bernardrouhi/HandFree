@@ -10,18 +10,21 @@ from PySide2.QtCore import (Qt, QPoint, QRegExp, QItemSelection, QSortFilterProx
 
 from ...core import projectMetadata, publishMetadata, pipeline_handler, mayaHelper
 from .. import logViewerWidget
+from . import copyDialog
 
 reload(projectMetadata)
 reload(publishMetadata)
 reload(pipeline_handler)
 reload(logViewerWidget)
 reload(mayaHelper)
+reload(copyDialog)
 
 from ...core.projectMetadata import ProjectMeta, AssetSpaceKeys, ProjectKeys
 from ...core.publishMetadata import PublishMeta, PublishLogKeys, PUBLISH_FILE
 from ...core.pipeline_handler import Pipeline
 from ...core.mayaHelper import reference_FileToScene,import_FileToScene
 from ..logViewerWidget import LogViewerWidget
+from .copyDialog import CopyProgressDialog
 
 class PublishViewerDialog(QDialog):
 	onWorkfileChanged = Signal()
@@ -376,8 +379,10 @@ class PublishViewerDialog(QDialog):
 			fileName = self.get_AssetFileName()
 			new_workfile = os.path.join(fileDir,"Published_{}".format(fileName))
 
-			shutil.copy(published_file, new_workfile)
-			self.onWorkfileChanged.emit()
+			# shutil.copy(published_file, new_workfile)
+			copyProgress = CopyProgressDialog(self,published_file,new_workfile)
+			if copyProgress.exec_() == copyProgress.Accepted:
+				self.onWorkfileChanged.emit()
 
 	def get_AssetFileName(self):
 		if self.asset_list.currentIndex().row() >= 0:

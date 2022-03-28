@@ -8,15 +8,18 @@ from PySide2.QtGui import (QRegExpValidator)
 from PySide2.QtCore import (Qt, QPoint, QRegExp)
 
 from ...core import projectMetadata, publishMetadata, mayaHelper
+from . import copyDialog
 
 reload(projectMetadata)
 reload(publishMetadata)
 reload(mayaHelper)
+reload(copyDialog)
 
 from ...core.projectMetadata import ProjectMeta, AssetSpaceKeys, ProjectKeys
 from ...core.publishMetadata import PublishMeta, PublishLogKeys, PUBLISH_FILE
 from ...core.mayaHelper import get_MayaVersion
 from ..validateWidget import ValidateWidget, ValidationKeys
+from .copyDialog import CopyProgressDialog
 
 class PublishCore(QDialog):
 	def __init__(self, parent=None, project=ProjectMeta(), assetType=str, assetContainer=str, assetSpace=str, assetName=str, filePath=str):
@@ -459,6 +462,8 @@ class PublishDialog(PublishCore):
 	def update_fileName(self, name=str):
 		variant_txt = re.sub("\W",'', name)
 		if variant_txt:
+			var = "{Name}_{Variant}".format(Name=self._assetName, Variant=variant_txt)
+			self._version = self._publish.get_variant_version(variant=var)+1
 			self.publishFile_txt.setText("{Name}_{Variant}_{Version:03d}{Extention}".format(
 														Name=self._assetName, 
 														Variant=variant_txt, 
@@ -468,6 +473,7 @@ class PublishDialog(PublishCore):
 														Name=self._assetName, 
 														Variant=variant_txt))
 		else:
+			self._version = self._publish.get_variant_version(variant=self._assetName)+1
 			self.publishFile_txt.setText("{Name}_{Version:03d}{Extention}".format(
 														Name=self._assetName, 
 														Version=self._version, 
@@ -481,7 +487,7 @@ class PublishDialog(PublishCore):
 		publish_path = os.path.join(self.get_publish_directory(), PUBLISH_FILE)
 		self._publish.load(directory=publish_path)
 		if os.path.exists(publish_path):
-			self._version = self._publish.get_version() + 1
+			self._version = self._publish.get_variant_version(variant=self._assetName) + 1
 		else:
 			self._version = 1
 		self.update_fileName(name="")
@@ -496,8 +502,11 @@ class PublishDialog(PublishCore):
 			self.variant_Selected()
 
 	def variant_Selected(self):
+		'''registed variant selected from ListWidget
+		'''
 		if self.variant_list.currentRow() >= 0:
 			selected = self.variant_list.currentItem().text()
+			self._version = self._publish.get_variant_version(variant=selected)+1
 			self.publishFile_txt.setText("{Name}_{Version:03d}{Extention}".format(
 														Name=selected, 
 														Version=self._version, 
@@ -512,29 +521,33 @@ class PublishDialog(PublishCore):
 		variants = self._publish.get_variants()
 		self.variant_list.addItems(variants)
 
+	def get_PublishedFile(self):
+		return self.publishFile_txt.text()
+
 	def publish_asset(self):
 		if os.path.exists(self._project.get_PublishDirectory()):
-			self._publish.create_new_log(
-				username=self.user_in.text(),
-				variant=self.publishVariant_txt.text(),
-				workfiles=[self._workFile],
-				publishfiles=[self.publishFile_txt.text()],
-				app=get_MayaVersion(),
-				description="Auto Publish by HandsFree")
-			self._publish.set_PublishNode(
-				assetType=self._assetType,
-				assetContainer=self._assetContainer,
-				assetSpace=self._assetSpace,
-				assetName=self._assetName
-			)
 			publish_path = self.get_publish_directory()
 			if not os.path.exists(publish_path):
 				os.makedirs(publish_path)
-			shutil.copy(self.get_workfile_path(), self.get_publishfile_path())
-			self._publish.save(directory=publish_path)
-			return True
-		else:
-			return False
+			copyProgress = CopyProgressDialog(source=self.get_workfile_path(), destination=self.get_publishfile_path())
+			if copyProgress.exec_() == copyProgress.Accepted:
+				self._publish.create_new_log(
+					username=self.user_in.text(),
+					variant=self.publishVariant_txt.text(),
+					workfiles=[self._workFile],
+					publishfiles=[self.publishFile_txt.text()],
+					app=get_MayaVersion(),
+					description="Auto Publish by HandsFree")
+				self._publish.set_PublishNode(
+					assetType=self._assetType,
+					assetContainer=self._assetContainer,
+					assetSpace=self._assetSpace,
+					assetName=self._assetName
+				)
+				# shutil.copy(self.get_workfile_path(), self.get_publishfile_path())
+				self._publish.save(directory=publish_path)
+				return True
+		return False
 
 class PublishGameDialog(PublishCore):
 	def __init__(self, **kw):
@@ -705,27 +718,35 @@ class PublishGameDialog(PublishCore):
 		variants = self._publish.get_variants()
 		self.variant_list.addItems(variants)
 
+	def get_PublishedFile(self):
+		return self.publishFile_txt.text()
+
 	def publish_asset(self):
 		if os.path.exists(self._project.get_PublishDirectory()):
-			self._publish.create_new_log(
-				username=self.user_in.text(),
-				variant=self.publishVariant_txt.text(),
-				workfiles=[self._workFile],
-				publishfiles=[self.publishFile_txt.text()],
-				app=get_MayaVersion(),
-				description="Auto Publish by HandsFree"
-			)
-			self._publish.set_PublishNode(
-				assetType=self._assetType,
-				assetContainer=self._assetContainer,
-				assetSpace=self._assetSpace,
-				assetName=self._assetName
-			)
+			# make sure publish path exists
 			publish_path = self.get_publish_directory()
 			if not os.path.exists(publish_path):
 				os.makedirs(publish_path)
-			shutil.copy(self.get_workfile_path(), self.get_publishfile_path())
-			self._publish.save(directory=publish_path)
-			return True
-		else:
-			return False
+			# Copy publish file
+			copyProgress = CopyProgressDialog(source=self.get_workfile_path(), destination=self.get_publishfile_path())
+			if copyProgress.exec_() == copyProgress.Accepted:
+				# create a new log
+				self._publish.create_new_log(
+					username=self.user_in.text(),
+					variant=self.publishVariant_txt.text(),
+					workfiles=[self._workFile],
+					publishfiles=[self.publishFile_txt.text()],
+					app=get_MayaVersion(),
+					description="Auto Publish by HandsFree"
+				)
+				self._publish.set_PublishNode(
+					assetType=self._assetType,
+					assetContainer=self._assetContainer,
+					assetSpace=self._assetSpace,
+					assetName=self._assetName
+				)
+				# shutil.copy(self.get_workfile_path(), self.get_publishfile_path())
+				# Save the info
+				self._publish.save(directory=publish_path)
+				return True
+		return False

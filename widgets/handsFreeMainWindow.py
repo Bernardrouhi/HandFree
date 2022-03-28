@@ -1,4 +1,4 @@
-import webbrowser
+import webbrowser, os
 from PySide2.QtWidgets import (QMainWindow, QDockWidget, QWidget, QAction, 
 						  QMenuBar,QFileDialog, QTabWidget, QMenu, QDialog)
 from PySide2.QtCore import Qt
@@ -66,9 +66,10 @@ class HandsFreeMainWindow(QMainWindow):
 	def create_menu(self):
 		window_menu = QMenuBar(self)
 
+		# Setup Menu
+		setup_menu = window_menu.addMenu("&Setup")
+
 		if self._edit:
-			# Setup Menu
-			setup_menu = window_menu.addMenu("&Setup")
 
 			setup_action = QAction("&Setup Project", self)
 			setup_action.setStatusTip('Edit the project settings.')
@@ -84,6 +85,12 @@ class HandsFreeMainWindow(QMainWindow):
 			save_action.setStatusTip('Save hfp file.')
 			save_action.triggered.connect(self.save_project)
 			setup_menu.addAction(save_action)
+
+		else:
+			workfile_action = QAction("&Pick WorkDirectory", self)
+			workfile_action.setStatusTip('Pick a local workdirectory to store the workfiles.')
+			workfile_action.triggered.connect(self.setupWorkDirectory)
+			setup_menu.addAction(workfile_action)
 
 		# Tool Menu
 		tool_menu = window_menu.addMenu("&Tool")
@@ -125,6 +132,12 @@ class HandsFreeMainWindow(QMainWindow):
 			self._project.set_WorkDirectory(projectDialog.get_WorkDirectory())
 			self._project.set_PublishDirectory(projectDialog.get_PublishDirectory())
 			print ("Project Settings are stored.")
+
+	def setupWorkDirectory(self):
+		'''Pick Work Directory'''
+		work_Dir = QFileDialog.getExistingDirectory(self,"Pick Work Directory Folder",os.path.expanduser("~"))
+		if work_Dir:
+			self._project.set_WorkDirectory(work_directory=work_Dir)
 
 	def save_project(self):
 		'''Save project HFP file'''
