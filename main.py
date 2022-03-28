@@ -18,7 +18,7 @@ from widgets.handsFreeMainWindow import HandsFreeMainWindow
 #Widget
 class HFWidget(QWidget):
 	instances = list()
-	TITLE = "HandsFree v2.1.0-BETA"
+	TITLE = "HandsFree v2.1.1-BETA"
 	def __init__(self, parent=get_MayaWindow(), projectfile=str(), edit=bool(False),  *args, **kwargs):
 		super(HFWidget, self).__init__(parent=parent, *args, **kwargs)
 		self.setMinimumWidth(400)
