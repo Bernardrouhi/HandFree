@@ -8,6 +8,7 @@ class HandsFreeENV():
 	ASSET_TYPE = 'HF_ASSET_TYPE'
 	ASSET_SPACE = 'HF_ASSET_SPACE'
 	ASSET_CONTAINER = 'HF_ASSET_CONTAINER'
+	HFP_FILE = 'HFP_FILE'
 
 def is_Env(key=str):
 	'''Check if Key exists in environment variables.
@@ -52,3 +53,25 @@ def del_Env(key_name=str):
 	'''
 	if is_Env(key_name):
 		del os.environ[key_name]
+
+def check_hfp_file(projectfile=str()):
+	_projectfile = str()
+	if projectfile:
+		_projectfile = os.path.normpath(projectfile)
+		if os.path.isfile(_projectfile) and _projectfile.lower().endswith(".hfp"):
+			set_Env(key_name=HandsFreeENV.HFP_FILE,value_name=_projectfile)
+			print ("-----Loaded hfp from File Path-----")
+			return _projectfile
+	return ""
+
+def check_hfp_env():
+	result = get_Env(key_name=HandsFreeENV.HFP_FILE)
+	if result:
+		_projectfile = os.path.normpath(result)
+		if os.path.isfile(_projectfile) and _projectfile.lower().endswith(".hfp"):
+			_projectfile = os.path.normpath(result)
+			print ("-----Loaded hfp from Environment Variable-----")
+			return _projectfile
+	else:
+		set_Env(key_name=HandsFreeENV.HFP_FILE, value_name="")
+	return ""
