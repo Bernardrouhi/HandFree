@@ -20,7 +20,7 @@ from widgets.handFreeMainWindow import HandFreeMainWindow
 #Widget
 class HFWidget(QWidget):
 	instances = list()
-	TITLE = "HandFree v3.0.0"
+	TITLE = "HandFree v3.0.1"
 	def __init__(self, parent=get_MayaWindow(), projectfile=str(), edit=bool(False),  *args, **kwargs):
 		super(HFWidget, self).__init__(parent=parent, *args, **kwargs)
 		self.setMinimumWidth(400)
