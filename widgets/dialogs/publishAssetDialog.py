@@ -537,7 +537,7 @@ class PublishDialog(PublishCore):
 					workfiles=[self._workFile],
 					publishfiles=[self.publishFile_txt.text()],
 					app=get_MayaVersion(),
-					description="Auto Publish by HandsFree")
+					description="Auto Publish by HandFree")
 				self._publish.set_PublishNode(
 					assetType=self._assetType,
 					assetContainer=self._assetContainer,
@@ -737,7 +737,7 @@ class PublishGameDialog(PublishCore):
 					workfiles=[self._workFile],
 					publishfiles=[self.publishFile_txt.text()],
 					app=get_MayaVersion(),
-					description="Auto Publish by HandsFree"
+					description="Auto Publish by HandFree"
 				)
 				self._publish.set_PublishNode(
 					assetType=self._assetType,

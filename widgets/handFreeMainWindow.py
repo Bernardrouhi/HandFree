@@ -19,15 +19,15 @@ from dialogs.projectSetupDialog import ProjectSetupDialog
 from dialogs.exportAssetsDialog import ExportDialog
 from ..core.projectMetadata import ProjectMeta
 
-class HandsFreeMainWindow(QMainWindow):
+class HandFreeMainWindow(QMainWindow):
 	def __init__(self, parent=None, projectfile=str(), edit=bool(False)):
-		super(HandsFreeMainWindow, self).__init__(parent)
+		super(HandFreeMainWindow, self).__init__(parent)
 		self._parent = parent
 		self._edit = edit
 		self._project = ProjectMeta()
 		self._project.load(ProjectFile=projectfile)
 
-		self.setWindowTitle('HandsFreeMainWindow')
+		self.setWindowTitle('HandFreeMainWindow')
 
 		self.setMinimumHeight(1)
 		self.setMinimumWidth(1)
@@ -107,7 +107,7 @@ class HandsFreeMainWindow(QMainWindow):
 
 		# About menu
 		about_menu = window_menu.addMenu("&About")
-		wiki_action = QAction("&About HandsFree...", self)
+		wiki_action = QAction("&About HandFree...", self)
 		wiki_action.setStatusTip('Open Wiki page for documentation.')
 		wiki_action.triggered.connect(self.wiki_open)
 		about_menu.addAction(wiki_action)
@@ -116,7 +116,7 @@ class HandsFreeMainWindow(QMainWindow):
 
 	def wiki_open(self):
 		print ("Wiki is not ready yet.")
-		# webbrowser.open_new_tab('https://github.com/Bernardrouhi/HandsFree/wiki')
+		# webbrowser.open_new_tab('https://github.com/Bernardrouhi/HandFree/wiki')
 
 	def setup_project(self):
 		'''Setup project Dialog and update Environment varaiables'''

@@ -1,6 +1,6 @@
 import os
 
-class HandsFreeENV():
+class HandFreeENV():
 	WORK_DIR = 'HF_WORK_DIR'
 	PUBLISH_DIR = 'HF_PUBLISH_DIR'
 	PROJECT_NAME = 'HF_PROJECT_NAME'
@@ -59,13 +59,13 @@ def check_hfp_file(projectfile=str()):
 	if projectfile:
 		_projectfile = os.path.normpath(projectfile)
 		if os.path.isfile(_projectfile) and _projectfile.lower().endswith(".hfp"):
-			set_Env(key_name=HandsFreeENV.HFP_FILE,value_name=_projectfile)
+			set_Env(key_name=HandFreeENV.HFP_FILE,value_name=_projectfile)
 			print ("-----Loaded hfp from File Path-----")
 			return _projectfile
 	return ""
 
 def check_hfp_env():
-	result = get_Env(key_name=HandsFreeENV.HFP_FILE)
+	result = get_Env(key_name=HandFreeENV.HFP_FILE)
 	if result:
 		_projectfile = os.path.normpath(result)
 		if os.path.isfile(_projectfile) and _projectfile.lower().endswith(".hfp"):
@@ -73,5 +73,5 @@ def check_hfp_env():
 			print ("-----Loaded hfp from Environment Variable-----")
 			return _projectfile
 	else:
-		set_Env(key_name=HandsFreeENV.HFP_FILE, value_name="")
+		set_Env(key_name=HandFreeENV.HFP_FILE, value_name="")
 	return ""

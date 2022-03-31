@@ -19,7 +19,7 @@ class PublishLogKeys():
 	DESCRIPTION = "Description"
 
 class PublishFileKeys():
-	FILE_VERSION = "Hands Free Version"
+	FILE_VERSION = "HandFree Version"
 	VERSION = "Version"
 	ASSET_TYPE = "AssetType"
 	ASSET_CONTAINER = "AssetContainer"
@@ -28,7 +28,7 @@ class PublishFileKeys():
 	LOGS = "Logs"
 
 class PublishMeta(QObject):
-	'''Handle Hands Free Publish file'''
+	'''Handle Hand Free Publish file'''
 	def __init__(self, meta_path=str()):
 		QObject.__init__(self)
 		self._publish = self.PUBLISH_METADATA()
@@ -147,7 +147,7 @@ class PublishMeta(QObject):
 		return datetime.utcfromtimestamp(record).time()
 
 	def save(self, directory=str):
-		'''Save Hands Free publish file
+		'''Save Hand Free publish file
 
 			Args:
 			directory (str): Path to publish file.

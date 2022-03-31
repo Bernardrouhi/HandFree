@@ -6,21 +6,21 @@ from PySide2.QtWidgets import (QWidget, QHBoxLayout, QDockWidget, QLabel)
 import core
 import widgets
 
-from widgets import handsFreeMainWindow
+from widgets import handFreeMainWindow
 from core import mayaHelper, env_handler
 
-reload(handsFreeMainWindow)
+reload(handFreeMainWindow)
 reload(mayaHelper)
 reload(env_handler)
 
 from core.mayaHelper import get_MayaWindow, create_WorkSpaceControl, get_MayaControl, delete_WorkSpaceControl, restore_WorkSpaceControl
 from core.env_handler import check_hfp_file, check_hfp_env
-from widgets.handsFreeMainWindow import HandsFreeMainWindow
+from widgets.handFreeMainWindow import HandFreeMainWindow
 
 #Widget
 class HFWidget(QWidget):
 	instances = list()
-	TITLE = "HandsFree v2.2.1-BETA"
+	TITLE = "HandFree v2.2.1-BETA"
 	def __init__(self, parent=get_MayaWindow(), projectfile=str(), edit=bool(False),  *args, **kwargs):
 		super(HFWidget, self).__init__(parent=parent, *args, **kwargs)
 		self.setMinimumWidth(400)
@@ -32,7 +32,7 @@ class HFWidget(QWidget):
 
 		self.layout = QHBoxLayout(self)
 		self.layout.setContentsMargins(0,0,0,0)
-		self.project = HandsFreeMainWindow(parent=None, projectfile=projectfile, edit=edit)
+		self.project = HandFreeMainWindow(parent=None, projectfile=projectfile, edit=edit)
 		self.layout.addWidget(self.project)
 
 		self.setWindowFlags(Qt.Window)
