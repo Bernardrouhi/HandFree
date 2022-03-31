@@ -37,6 +37,7 @@ class ProjectMeta(QObject):
 		'''
 		return {
 			ProjectKeys.WorkDirectory:"",
+			ProjectKeys.PublishDirectory:"",
 			ProjectKeys.Project:"",
 			ProjectKeys.AssetTypes:{},
 			ProjectKeys.Version:"1.0"
