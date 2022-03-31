@@ -156,7 +156,7 @@ class AssetLoaderWidget(QWidget):
 
 	def show_publishedDialog(self):
 		publishViewDialog = PublishViewerDialog(project=self._project)
-		publishViewDialog.onWorkfileChanged.connect(self.reload_assetContainerList)
+		publishViewDialog.onWorkfileChanged.connect(self.reload_assetTypes)
 		if publishViewDialog.exec_() == QDialog.Accepted:
 			print ("Done")
 
@@ -634,9 +634,10 @@ class AssetLoaderWidget(QWidget):
 						self.reload_assetWorkspaceList()
 
 	def assetSpace_doubleclicked(self):
-		fileName = self.assetSpace_list.currentIndex().data()
-		if fileName.lower().endswith(".ma"):
-			self.open_file()
+		if self.assetSpace_list.currentIndex().row() >= 0:
+			fileName = self.assetSpace_list.currentIndex().data()
+			if fileName.lower().endswith(".ma"):
+				self.open_file()
 
 	def create_scene(self):
 		workdir = self._project.get_WorkDirectory()

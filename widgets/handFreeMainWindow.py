@@ -92,6 +92,11 @@ class HandFreeMainWindow(QMainWindow):
 			workfile_action.triggered.connect(self.setupWorkDirectory)
 			setup_menu.addAction(workfile_action)
 
+		check_action = QAction("&Validate AssetTypes", self)
+		check_action.setStatusTip('Check and make sure assetTypes exist in WorkDirectory.')
+		check_action.triggered.connect(self.check_assetTypes_folder)
+		setup_menu.addAction(check_action)
+
 		# Tool Menu
 		tool_menu = window_menu.addMenu("&Tool")
 
@@ -113,6 +118,19 @@ class HandFreeMainWindow(QMainWindow):
 		about_menu.addAction(wiki_action)
 
 		return window_menu
+
+	def check_assetTypes_folder(self):
+		'''Create all assetType folders'''
+		workDirectory = self._project.get_WorkDirectory()
+		if workDirectory and os.path.exists(workDirectory):
+			for assetTypeName in self._project.get_AssetTypes():
+				assetTypePath = os.path.normpath(os.path.join(workDirectory,assetTypeName))
+				# Make directory if doesn't exists
+				if not os.path.exists(assetTypePath):
+					os.makedirs(assetTypePath)
+			self.assetLoader.reload_assetTypes()
+		else:
+			print ("Please pick a workdirectory.")
 
 	def wiki_open(self):
 		print ("Wiki is not ready yet.")
