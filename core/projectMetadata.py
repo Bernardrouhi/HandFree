@@ -23,7 +23,7 @@ class AssetSpaceKeys():
 	Empty = "Empty"
 
 class ProjectMeta(QObject):
-	'''Handle Hands Free Project file'''
+	'''Handle Hand Free Project file'''
 	onWorkDirectoryUpdate = Signal()
 	def __init__(self):
 		QObject.__init__(self)
@@ -164,7 +164,7 @@ class ProjectMeta(QObject):
 		self.set_WorkDirectory(work_directory)
 
 	def load(self, ProjectFile=str):
-		'''Load Hands Free Projet file
+		'''Load Hand Free Projet file
 
 			Args:
 			ProjectFile (str): Path to project file.
@@ -189,7 +189,7 @@ class ProjectMeta(QObject):
 							self.set_PublishDirectory(publish_directory=LoadedData[ProjectKeys.PublishDirectory])
 
 	def save(self, ProjectFile=str):
-		'''Save Hands Free Projet file
+		'''Save Hand Free Projet file
 
 			Args:
 			ProjectFile (str): Path to project file.
