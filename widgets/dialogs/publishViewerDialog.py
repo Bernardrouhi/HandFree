@@ -234,9 +234,9 @@ class PublishViewerDialog(QDialog):
 	def show_AssetMenu(self, point=QPoint):
 		self.assetMenu = QMenu()
 
-		copy_action = QAction("Copy asset to workfile", self)
-		copy_action.setStatusTip('Copy published asset into work folder.')
-		copy_action.triggered.connect(self.copy_publish_to_workfile)
+		copy_action = QAction("Copy asset to WorkDirectory", self)
+		copy_action.setStatusTip('Copy published asset into work directory.')
+		copy_action.triggered.connect(self.copy_publish_to_workdirectory)
 		self.assetMenu.addAction(copy_action)
 
 		reference_action = QAction('Create Reference', self)
@@ -365,7 +365,7 @@ class PublishViewerDialog(QDialog):
 	def create_structure(self):
 		print (self.get_selected_ChildPaths())
 
-	def copy_publish_to_workfile(self):
+	def copy_publish_to_workdirectory(self):
 		publishDir = self._project.get_PublishDirectory()
 		published_file = self.get_AssetPath()
 		if published_file:
