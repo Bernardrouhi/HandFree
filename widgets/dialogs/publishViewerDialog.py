@@ -8,7 +8,7 @@ from PySide2.QtGui import (QRegExpValidator, QStandardItemModel)
 from PySide2.QtCore import (Qt, QPoint, QRegExp, QItemSelection, QSortFilterProxyModel,
 						  QDir, QModelIndex, Signal, QObject)
 
-from ...core import projectMetadata, publishMetadata, pipeline_handler, mayaHelper
+from ...core import projectMetadata, publishMetadata, pipeline_handler, mayaHelper, pathNode
 from .. import logViewerWidget
 from . import copyDialog
 
@@ -17,17 +17,20 @@ reload(publishMetadata)
 reload(pipeline_handler)
 reload(logViewerWidget)
 reload(mayaHelper)
+reload(pathNode)
 reload(copyDialog)
 
 from ...core.projectMetadata import ProjectMeta, AssetSpaceKeys, ProjectKeys
 from ...core.publishMetadata import PublishMeta, PublishLogKeys, PUBLISH_FILE
 from ...core.pipeline_handler import Pipeline
 from ...core.mayaHelper import reference_FileToScene,import_FileToScene
+from ...core.pathNode import PathNode
 from ..logViewerWidget import LogViewerWidget
 from .copyDialog import CopyProgressDialog
 
 class PublishViewerDialog(QDialog):
 	onWorkfileChanged = Signal()
+	requestWorkspaceCreation = Signal(str,str, arguments=["AssetType","AssetContainer"])
 	def __init__(self, parent=None, project=ProjectMeta):
 		super(PublishViewerDialog, self).__init__(parent=parent)
 
@@ -75,7 +78,7 @@ class PublishViewerDialog(QDialog):
 		self.assetContainer_list.setHeaderLabels(self.assetContainer_columns)
 		self.assetContainer_list.setEditTriggers(QAbstractItemView.NoEditTriggers)
 		self.assetContainer_list.setContextMenuPolicy(Qt.CustomContextMenu)
-		# self.assetContainer_list.customContextMenuRequested.connect(self.show_ContainerMenu)
+		self.assetContainer_list.customContextMenuRequested.connect(self.show_ContainerMenu)
 
 		self.assetContainer_list.itemClicked.connect(self.container_selectionChanged)
 		self.assetContainer_list.itemDoubleClicked.connect(self.toogle_container_expand)
@@ -193,21 +196,20 @@ class PublishViewerDialog(QDialog):
 	def show_ContainerMenu(self, point=QPoint):
 		self.containerMenu = QMenu()
 
-		selected = self.assetContainer_list.selectedItems()
+		# selected = self.assetContainer_list.selectedItems()
+		# if len(selected) == 1:
+		# 	Create_action = QAction("Create new Asset", self)
+		# 	Create_action.setStatusTip('Allocate a new asset in publish folder.')
+		# 	Create_action.triggered.connect(self.create_new)
+		# 	self.containerMenu.addAction(Create_action)
+		# 	# shouldn't have child but parent
+		# 	if selected[0].childCount() <= 0 and selected[0].parent():
+		# 		log_actions = self.get_logs_actions()
+		# 		if log_actions:
+		# 			self.containerMenu.addSection("Logs")
+		# 			self.containerMenu.addActions(log_actions)
 
-		if len(selected) == 1:
-			Create_action = QAction("Create new Asset", self)
-			Create_action.setStatusTip('Allocate a new asset in publish folder.')
-			Create_action.triggered.connect(self.create_new)
-			self.containerMenu.addAction(Create_action)
-			# shouldn't have child but parent
-			if selected[0].childCount() <= 0 and selected[0].parent():
-				log_actions = self.get_logs_actions()
-				if log_actions:
-					self.containerMenu.addSection("Logs")
-					self.containerMenu.addActions(log_actions)
-
-		self.containerMenu.addSeparator()
+		# self.containerMenu.addSeparator()
 
 		structure_action = QAction("Copy Structure to Work directory", self)
 		structure_action.setStatusTip('Copy the folder structure into workdirectory.')
@@ -277,8 +279,21 @@ class PublishViewerDialog(QDialog):
 		else:
 			return item.text(0)
 
-	def get_selected_ChildPaths(self):
-		'''get list of select asset path'''
+	def get_ParentPath(self, item=QTreeWidgetItem):
+		'''get parent path of selected asset'''
+		def collect_names(file_path=str(), item=QTreeWidgetItem):
+			if item.parent():
+				return collect_names(file_path=os.path.join(item.text(0),file_path),item=item.parent())
+			else:
+				return os.path.normpath(os.path.join(item.text(0),file_path))
+
+		if item.parent():
+			return collect_names(item=item.parent())
+		else:
+			return ""
+
+	def get_ChildPaths(self, item=QTreeWidgetItem):
+		'''get list children path of selected asset'''
 		def collect_paths(file_path=str(), path_list=list(), item=QTreeWidgetItem):
 			if item.childCount() > 0:
 				file_path = os.path.join(file_path,item.text(0))
@@ -290,12 +305,11 @@ class PublishViewerDialog(QDialog):
 				path_list.append(last_path)
 				return path_list
 
-		item = self.assetContainer_list.currentItem()
 		if item.childCount() > 0:
 			new_list = list()
 			return collect_paths(file_path=str(), path_list=new_list, item=item)
 		else:
-			return item.text(0)
+			return [item.text(0)]
 	
 	def asset_selectionChanged(self, item=QTreeWidgetItem, column=int):
 		if item.childCount() == 0:
@@ -363,26 +377,44 @@ class PublishViewerDialog(QDialog):
 			# self.reload_assetContainerList()
 
 	def create_structure(self):
-		print (self.get_selected_ChildPaths())
+		items = self.assetContainer_list.selectedItems()
+		for item in items:
+			nodes = self.define_path(item=item)
+			for node in nodes:
+				if node.isValid():
+					self.requestWorkspaceCreation.emit(node.AssetContainer(),node.AssetType())
+
+	def define_path(self, item=QTreeWidgetItem):
+		nodes = list()
+		workDir = self._project.get_WorkDirectory()
+		assetParent = self.get_ParentPath(item=item)
+		assetChildren = self.get_ChildPaths(item=item)
+		for assetChild in assetChildren:
+			assetDir = os.path.normpath(os.path.join(assetParent,assetChild))
+			node = PathNode(relative_path=assetDir)
+			nodes.append(node)
+		return nodes
 
 	def copy_publish_to_workdirectory(self):
 		publishDir = self._project.get_PublishDirectory()
-		published_file = self.get_AssetPath()
-		if published_file:
-			workDir = self._project.get_WorkDirectory()
-			assetContainer = self.get_selected_ParentPath()
-			fileDir = os.path.join(workDir,assetContainer)
-			
-			if not os.path.exists(fileDir):
-				os.makedirs(fileDir)
+		workDir = self._project.get_WorkDirectory()
+		indexs = self.get_selected_indexs()
+		if os.path.exists(workDir):
+			for index in indexs:
+				published_file = self.get_AssetPathFromIndex(index=index)
+				assetContainer = self.get_selected_ParentPath()
+				fileDir = os.path.join(workDir,assetContainer)
+				
+				if not os.path.exists(fileDir):
+					os.makedirs(fileDir)
 
-			fileName = self.get_AssetFileName()
-			new_workfile = os.path.join(fileDir,"Published_{}".format(fileName))
+				fileName = self.get_AssetFileNameFromIndex(index=index)
+				new_workfile = os.path.join(fileDir,"Published_{}".format(fileName))
 
-			# shutil.copy(published_file, new_workfile)
-			copyProgress = CopyProgressDialog(self,published_file,new_workfile)
-			if copyProgress.exec_() == copyProgress.Accepted:
-				self.onWorkfileChanged.emit()
+				# shutil.copy(published_file, new_workfile)
+				copyProgress = CopyProgressDialog(self,published_file,new_workfile)
+				if copyProgress.exec_() == copyProgress.Accepted:
+					self.onWorkfileChanged.emit()
 
 	def get_AssetFileName(self):
 		if self.asset_list.currentIndex().row() >= 0:
@@ -390,11 +422,32 @@ class PublishViewerDialog(QDialog):
 			return self.asset_model.fileName(index)
 		return None
 
+	def get_AssetFileNameFromIndex(self, index=QModelIndex):
+		if self.asset_list.currentIndex().row() >= 0:
+			source_index = self.asset_filter.mapToSource(index)
+			return self.asset_model.fileName(source_index)
+		return None
+
 	def get_AssetPath(self):
 		if self.asset_list.currentIndex().row() >= 0:
 			index = self.asset_filter.mapToSource(self.asset_list.currentIndex())
 			return self.asset_model.filePath(index)
 		return None
+
+	def get_AssetPathFromIndex(self, index=QModelIndex):
+		if self.asset_list.currentIndex().row() >= 0:
+			source_index = self.asset_filter.mapToSource(index)
+			return self.asset_model.filePath(source_index)
+		return None	
+
+	def get_selected_indexs(self):
+		if self.asset_list.currentIndex().row() >= 0:
+			return self.asset_list.selectionModel().selectedRows()
+		return []
+
+		# selection = self.ui_asset_list.selectionModel().selectedRows()
+		# selection_x = [self.ui_asset_list.model().mapToSource(index) for index in selection]
+		# assets = self.ui_asset_list.model().sourceModel().getSelectedItems(selection_x)
 
 	def get_AssetName(self):
 		item = self.assetContainer_list.currentItem()

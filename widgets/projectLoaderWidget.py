@@ -157,8 +157,13 @@ class AssetLoaderWidget(QWidget):
 	def show_publishedDialog(self):
 		publishViewDialog = PublishViewerDialog(project=self._project)
 		publishViewDialog.onWorkfileChanged.connect(self.reload_assetTypes)
+		publishViewDialog.requestWorkspaceCreation.connect(self.request_creating_workspace)
 		if publishViewDialog.exec_() == QDialog.Accepted:
 			print ("Done")
+
+	def request_creating_workspace(self, assetContainer=str, assetTypeName=str,):
+		self.create_New_AssetContainer(assetContainer=assetContainer,assetTypeName=assetTypeName)
+		self.reload_assetContainerList()
 
 	def show_AssetCreationDialog(self):
 		assetTypeDialog = Asset_Dialog(title = "New Asset Name")
