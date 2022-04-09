@@ -9,6 +9,7 @@ class HandFreeENV():
 	ASSET_SPACE = 'HF_ASSET_SPACE'
 	ASSET_CONTAINER = 'HF_ASSET_CONTAINER'
 	HFP_FILE = 'HFP_FILE'
+	DYNAMIC_ROOT = 'DYNAMIC_ROOT'
 
 def is_Env(key=str):
 	'''Check if Key exists in environment variables.

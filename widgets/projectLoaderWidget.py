@@ -23,7 +23,8 @@ from ..core.mayaHelper import (open_scene, set_MayaProject, create_EmptyScene,
 								copy_workspace, get_workspaceName, save_Scene,
 								rename_Scene,reference_FileToScene, import_FileToScene,
 								set_worldspace, isSceneModified, getCurrentSceneName,
-								set_defaultSceneSettings, show_grid, default_grid, is_custom_grid)
+								set_defaultSceneSettings, show_grid, default_grid, 
+								is_custom_grid, run_standalone, get_maya_script)
 from ..core.projectMetadata import ProjectMeta, ProjectKeys, AssetSpaceKeys
 from dialogs.publishAssetDialog import PublishDialog, PublishGameDialog
 from dialogs.publishViewerDialog import PublishViewerDialog
@@ -396,6 +397,13 @@ class AssetLoaderWidget(QWidget):
 				# reference_action.setDisabled(True)
 				# self.newMenu.addAction(reference_action)
 
+				# Have to get from publish directory
+				script_action = QAction("Run Script...", self)
+				script_action.setStatusTip('Run custom Script on the file.')
+				script_action.triggered.connect(self.run_custom_script)
+				script_action.setDisabled(not self._edit)
+				self.newMenu.addAction(script_action)
+
 				# fixReference_action = QAction("Fix References...", self)
 				# fixReference_action.setStatusTip('Fix references within the file.')
 				# fixReference_action.triggered.connect(self.fix_references)
@@ -433,6 +441,18 @@ class AssetLoaderWidget(QWidget):
 
 			self.newMenu.move(self.assetSpace_list.viewport().mapToGlobal(point))
 			self.newMenu.show()
+
+	def run_custom_script(self):
+		workdir = Pipeline().get_WorkDirectory()
+		assetType = self.assetType_combo.currentText()
+		assetSpace = self.get_selectedAssetSpace()
+		assetContainer = self.get_selectedAssetContainer()
+		fileName = self.assetSpace_list.currentIndex().data()
+
+		file_path = os.path.normpath(os.path.join(workdir,assetType,assetContainer,assetSpace,fileName))
+		# script_path = os.path.normpath(get_maya_script(script_name="SimpleCube"))
+		# # Run Script
+		# run_standalone(file_path=file_path,script_path=script_path)
 
 	def reference_file(self):
 		workdir = Pipeline().get_WorkDirectory()

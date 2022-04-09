@@ -8,6 +8,7 @@ from PySide2.QtWidgets import (QWidget, QMessageBox)
 from shiboken2 import wrapInstance
 from style_handler import current_file_path
 import pymel
+import subprocess
 
 class MayaAPIs():
 	MAYA2020 = 20200100
@@ -269,3 +270,39 @@ def default_grid():
 
 def is_custom_grid():
 	return cmds.grid( displayPerspectiveLabels=True, q=True )
+
+def get_maya_script(script_name=str()):
+	'''Get absolute path of scrip name in MayaScripts folder.
+	'''
+	current_path = os.path.normpath(os.path.dirname(os.path.realpath(__file__)))
+	return os.path.join(current_path, 'mayaScripts', '{}.py'.format(script_name))
+
+def get_MayaPy():
+	'''Get mayapy.exe absolute path
+
+		Return:
+			(string): abolute path of mayapy.exe.
+	'''
+	return os.path.normpath(os.path.join(os.environ["MAYA_LOCATION"], "bin", "mayapy.exe"))
+
+def run_standalone(mayaPy_Path=get_MayaPy() ,file_path=str, script_path=str):
+	'''Run Maya without opening the application 
+
+		Parameters
+		----------
+		mayaPy_Path: (str)
+			absolute path of mayapy.exe.
+		file_path: (str)
+			absolute path of maya scene file.
+		script_path: (str)
+			absolute path of a script file to run on that scene file.
+	'''
+	proc= subprocess.Popen('{MayaPy} {Script} {MayaFile}'.format(MayaPy=mayaPy_Path,Script=script_path,MayaFile=file_path),
+							stdout=subprocess.PIPE,
+							stderr=subprocess.PIPE)
+	out,err = proc.communicate()
+	exitcode = proc.returncode
+	if str(exitcode) != '0':
+		print(err)
+	else:
+		print('Job is Done')
