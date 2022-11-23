@@ -3,7 +3,7 @@ from PySide2.QtWidgets import (QAction, QFileDialog, QListWidget, QMenu, QSizePo
 						  QAbstractItemView, QTableWidget,QHeaderView, QHBoxLayout,
 						  QTableWidgetItem, QComboBox, QDialog, QVBoxLayout, QLabel,
 						  QLineEdit, QPushButton, QGroupBox, QStackedLayout, QFrame,
-						  QCheckBox, QTabWidget, QWidget)
+						  QCheckBox, QTabWidget, QWidget, QApplication)
 from PySide2.QtGui import (QRegExpValidator)
 from PySide2.QtCore import (Qt, QPoint, QRegExp)
 
@@ -20,6 +20,138 @@ from ...core.publishMetadata import PublishMeta, PublishLogKeys, PUBLISH_FILE
 from ...core.mayaHelper import get_MayaVersion
 from ..validateWidget import ValidateWidget, ValidationKeys
 from .copyDialog import CopyProgressDialog
+
+class BatchVariantDialog(QDialog):
+	def __init__(self, parent=None, AssetName=str()):
+		super(BatchVariantDialog, self).__init__(parent=parent)
+
+		self._assetName = AssetName
+
+		self.setFixedSize(300, 500)
+
+		main_layout = QVBoxLayout(self)
+		main_layout.setContentsMargins(5,5,5,5)
+		main_layout.setSpacing(5)
+		main_layout.setAlignment(Qt.AlignTop)
+		self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+
+		# ------- Row -------
+		# ----------------------------------------
+		new_layout = QHBoxLayout()
+		new_layout.setContentsMargins(0,0,0,0)
+		new_layout.setSpacing(3)
+		new_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+
+		variantLabel = QLabel("New:")
+		self.variant_in = QLineEdit()
+		self.variant_in.returnPressed.connect(self.add_variant)
+
+		new_layout.addWidget(variantLabel)
+		new_layout.addWidget(self.variant_in)
+
+		main_layout.addLayout(new_layout)
+
+		# ------- Row -------
+		# ----------------------------------------
+		variant_layout = QHBoxLayout()
+		variant_layout.setContentsMargins(0,0,0,0)
+		variant_layout.setSpacing(3)
+		variant_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+
+		self.variant_list = QListWidget()
+		self.variant_list.setSelectionMode(QAbstractItemView.MultiSelection)
+		# self.variant_list.setSelectionMode(QAbstractItemView.SingleSelection)
+		self.variant_list.setContextMenuPolicy(Qt.CustomContextMenu)
+		self.variant_list.setEditTriggers(QAbstractItemView.NoEditTriggers)
+		self.variant_list.customContextMenuRequested.connect(self.variantMenu)
+
+		variant_layout.addWidget(self.variant_list)
+
+		main_layout.addLayout(variant_layout)
+
+		# ------- Row -------
+		# ----------------------------------------
+		action_layout = QHBoxLayout()
+		action_layout.setContentsMargins(0,0,0,0)
+		action_layout.setSpacing(3)
+		action_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+
+		publish_btn = QPushButton("Save")
+		publish_btn.clicked.connect(self.accept)
+		cancel_btn = QPushButton("Cancel")
+		cancel_btn.clicked.connect(self.reject)
+
+		action_layout.addWidget(publish_btn)
+		action_layout.addStretch(0)
+		action_layout.addWidget(cancel_btn)
+
+		main_layout.addLayout(action_layout)
+
+		self.setWindowTitle("Add Variants")
+
+	def variantMenu(self, point=QPoint):
+		self.newMenu = QMenu()
+
+		# Remove Variant
+		remove_action = QAction("Remove Variant", self)
+		remove_action.setStatusTip('Remove the selected variants.')
+		remove_action.triggered.connect(self.remove_variant)
+		self.newMenu.addAction(remove_action)
+
+		self.newMenu.addSeparator()
+		
+		# Copy
+		copy_action = QAction("Copy", self)
+		copy_action.setStatusTip('Copy the list of variants.')
+		copy_action.triggered.connect(self.copy_variants)
+		self.newMenu.addAction(copy_action)
+
+		# Paste
+		paste_action = QAction("Paste", self)
+		paste_action.setStatusTip('Paste list of variants.')
+		paste_action.triggered.connect(self.paste_variants)
+		self.newMenu.addAction(paste_action)
+
+		self.newMenu.move(self.variant_list.viewport().mapToGlobal(point))
+		self.newMenu.show()
+
+	def get_name(self, name=str()):
+		return "{0}_{1}".format(self._assetName, name)
+
+	def ValidateName(self, name=str()):
+		return re.sub("\W",'', name)
+
+	def add_variant(self):
+		variant = self.variant_in.text()
+		if variant:
+			self.variant_list.addItem(self.get_name(variant))
+		self.variant_in.setText("")
+
+	def remove_variant(self):
+		for item in self.variant_list.selectedItems():
+			self.variant_list.takeItem(self.variant_list.indexFromItem(item).row())
+
+	def paste_variants(self):
+		clipboard = QApplication.clipboard()
+		names = clipboard.text().split("\n")
+		for name in names:
+			variant_txt = self.ValidateName(name)
+			if variant_txt:
+				self.variant_list.addItem(self.get_name(variant_txt))
+
+	def get_variants(self):
+		items = list()
+		for index in range(self.variant_list.count()):
+			data = self.variant_list.item(index).data(0)
+			variant_txt =  self.ValidateName(data)
+			items.append(variant_txt)
+		return items
+
+	def copy_variants(self):
+		clipboard = QApplication.clipboard()
+		items = self.get_variants()
+		if items:
+			clipboard.setText("\n".join(items))
 
 class PublishCore(QDialog):
 	def __init__(self, parent=None, project=ProjectMeta(), assetType=str, assetContainer=str, assetSpace=str, assetName=str, filePath=str):
@@ -591,9 +723,13 @@ class PublishGameDialog(PublishCore):
 		new_label.setAlignment(Qt.AlignRight|Qt.AlignCenter)
 		new_label.setFixedWidth(100)
 		self.new_check = QCheckBox("New Variant?")
+		batch_btn = QPushButton("Create Variants")
+		batch_btn.clicked.connect(self.show_CreateBatchVariants)
 
 		new_layout.addWidget(new_label)
 		new_layout.addWidget(self.new_check)
+		new_layout.addStretch(0)
+		new_layout.addWidget(batch_btn)
 
 		publishgrp_layout.addLayout(new_layout)
 
@@ -689,6 +825,25 @@ class PublishGameDialog(PublishCore):
 		else:
 			self.publishFile_txt.setText((self._assetName+self._extension))
 			self.publishVariant_txt.setText(self._assetName)
+
+	def show_CreateBatchVariants(self):
+		variant_dialog = BatchVariantDialog(AssetName=self._assetName)
+		if variant_dialog.exec_() == variant_dialog.Accepted:
+			self.load_publishFile()
+			for item in variant_dialog.get_variants():
+				if not self._publish.has_variant(item):
+					self._publish.create_variant(item)
+
+			if os.path.exists(self._project.get_PublishDirectory()):
+				# make sure publish path exists
+				publish_path = self.get_publish_directory()
+				if not os.path.exists(publish_path):
+					os.makedirs(publish_path)
+
+			self._publish.save(directory=publish_path)
+			self.load_publishFile()
+			# msg = QMessageBox()
+			# msg.information(self, 'Published', '{} File is Published.'.format(publish_dialog.get_PublishedFile()), QMessageBox.Ok)
 
 	def load_publishFile(self):
 		publish_path = os.path.join(self.get_publish_directory(), PUBLISH_FILE)
