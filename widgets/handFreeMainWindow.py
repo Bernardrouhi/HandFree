@@ -6,16 +6,19 @@ from PySide2.QtCore import Qt
 import projectLoaderWidget
 import projectInfoWidget
 import dialogs.projectSetupDialog
+import vertexAnimationWidget
 from ..core import projectMetadata
 
 reload(projectLoaderWidget)
 reload(projectInfoWidget)
 reload(dialogs.projectSetupDialog)
+reload(vertexAnimationWidget)
 reload(projectMetadata)
 
 from projectLoaderWidget import AssetLoaderWidget
 from projectInfoWidget import ProjectInfo
 from dialogs.projectSetupDialog import ProjectSetupDialog
+from vertexAnimationWidget import VertexAnimationWidget
 from dialogs.exportAssetsDialog import ExportDialog
 from ..core.projectMetadata import ProjectMeta
 
@@ -46,6 +49,17 @@ class HandFreeMainWindow(QMainWindow):
 		# self.infoDock.setTitleBarWidget(QWidget(self.infoDock))
 		self.addDockWidget(Qt.LeftDockWidgetArea, self.infoDock)
 		self.infoDock.setVisible(False)
+
+		# Vertex Animation to Texture
+		self.VertexAnimaton = VertexAnimationWidget()
+		self.VertexDock = QDockWidget(" Vertex Animation to Texture ", self)
+		self.VertexDock.setObjectName('Vertex Animation')
+		self.VertexDock.setFeatures(QDockWidget.DockWidgetClosable|QDockWidget.DockWidgetMovable)
+		self.VertexDock.setWidget(self.VertexAnimaton)
+		# self.infoDock.setTitleBarWidget(QWidget(self.infoDock))
+		self.addDockWidget(Qt.LeftDockWidgetArea, self.VertexDock)
+		self.VertexDock.setVisible(False)
+
 
 		# Asset Loader Tab
 		self.assetLoader = AssetLoaderWidget(edit=edit, project=self._project)
