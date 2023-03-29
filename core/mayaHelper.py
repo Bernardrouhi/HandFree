@@ -3,11 +3,11 @@ import shutil
 from maya import cmds
 from maya import mel
 from maya import OpenMayaUI as omui
+import pymel.core as pm
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import (QWidget, QMessageBox)
 from shiboken2 import wrapInstance
 from style_handler import current_file_path
-import pymel
 import subprocess
 
 class MayaAPIs():
@@ -306,3 +306,30 @@ def run_standalone(mayaPy_Path=get_MayaPy() ,file_path=str, script_path=str):
 		print(err)
 	else:
 		print('Job is Done')
+
+def get_playback_min():
+	'''Get start frame of timeline
+
+		Return:
+			(int): start frame.
+	'''
+	return cmds.playbackOptions(q=True,min=True)
+
+def get_playback_max():
+	'''Get end frame of timeline
+
+		Return:
+			(int): end frame.
+	'''
+	return cmds.playbackOptions(q=True,max=True)
+
+def get_shape(NodeName=str):
+	'''Get shapes of a given object
+
+		Return:
+			(list <class 'pymel.core.nodetypes.Mesh'>): list of shapes.
+	'''
+	return pm.listRelatives(NodeName, shapes=True) if pm.objExists(NodeName) else list()
+
+def set_currentFrame(frame=int):
+	cmds.currentTime( frame, edit=True )

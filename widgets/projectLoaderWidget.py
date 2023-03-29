@@ -40,6 +40,8 @@ class AssetLoaderWidget(QWidget):
 		self.setMinimumHeight(1)
 		self.setMinimumWidth(1)
 
+		_leftSpace = 100
+
 		# ------------- Main Layout --------------
 		main_layout = QVBoxLayout(self)
 		main_layout.setContentsMargins(5,5,5,5)
@@ -55,7 +57,7 @@ class AssetLoaderWidget(QWidget):
 		assetTypeLayout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
 
 		assetTypeLabel = QLabel("Asset Type:")
-		assetTypeLabel.setFixedWidth(65)
+		assetTypeLabel.setFixedWidth(_leftSpace)
 		assetTypeLabel.setAlignment(Qt.AlignTop|Qt.AlignRight)
 		self.assetType_combo = QComboBox()
 		self.assetType_combo.currentIndexChanged.connect(self.assetType_IndexChanged)
@@ -77,7 +79,7 @@ class AssetLoaderWidget(QWidget):
 		assetslistLayout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
 
 		assetSpacer = QLabel("Asset Name:")
-		assetSpacer.setFixedWidth(65)
+		assetSpacer.setFixedWidth(_leftSpace)
 		assetSpacer.setAlignment(Qt.AlignTop|Qt.AlignRight)
 		self.assetContainer_columns = ['AssetContainer','AssetSpace']
 		self.assetContainer_list = QTreeWidget()
@@ -101,7 +103,7 @@ class AssetLoaderWidget(QWidget):
 		directoryLayout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
 
 		directoryLabel = QLabel("Directory:")
-		directoryLabel.setFixedWidth(65)
+		directoryLabel.setFixedWidth(_leftSpace)
 		directoryLabel.setAlignment(Qt.AlignTop|Qt.AlignRight)
 		self.assetSpace_list = AssetTreeView()
 		# self.assetSpace_list.setSelectionMode(QAbstractItemView.SingleSelection)
