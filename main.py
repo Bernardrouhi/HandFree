@@ -17,7 +17,7 @@ from core.env_handler import check_hfp_file, check_hfp_env
 from widgets.handFreeMainWindow import HandFreeMainWindow
 
 OBJECT_NAME = "HandFreeCustomWindow"
-TITLE = "HandFree v4.1.0"
+TITLE = "HandFree v4.2.0"
 
 class HFWidget(MayaQWidgetDockableMixin, QWidget):
 	def __init__(self, parent=None, projectfile=str(), edit=bool(),  *args, **kwargs):

@@ -21,13 +21,79 @@ from ...core.mayaHelper import get_MayaVersion
 from ..validateWidget import ValidateWidget, ValidationKeys
 from .copyDialog import CopyProgressDialog
 
+class RemoveVariantDialog(QDialog):
+	def __init__(self, parent=None):
+		super(RemoveVariantDialog, self).__init__(parent=parent)
+
+		self.setWindowTitle("Permanently Remove a Variant!!")
+
+		self.setMinimumWidth(500)
+		self.setMinimumHeight(140)
+
+		main_layout = QVBoxLayout(self)
+		main_layout.setContentsMargins(5,5,5,5)
+		main_layout.setSpacing(5)
+		main_layout.setAlignment(Qt.AlignTop)
+		self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+
+		# ------- Row -------
+		# ----------------------------------------
+		new_layout = QVBoxLayout()
+		new_layout.setContentsMargins(0,0,0,0)
+		new_layout.setSpacing(3)
+		new_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+
+		warning_Label = QLabel("You are about to remove a variant Permanently!")
+		warning2_Label = QLabel("Please confirm by type the variant name.")
+
+		new_layout.addWidget(warning_Label)
+		new_layout.addWidget(warning2_Label)
+
+		main_layout.addLayout(new_layout)
+
+		# ------- Row -------
+		# ----------------------------------------
+		new_layout = QHBoxLayout()
+		new_layout.setContentsMargins(0,0,0,0)
+		new_layout.setSpacing(3)
+		new_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+
+		name_Label = QLabel("Name:")
+		self.variant_in = QLineEdit()
+		new_layout.addWidget(name_Label)
+		new_layout.addWidget(self.variant_in)
+
+		main_layout.addLayout(new_layout)
+
+		# ------- Row -------
+		# ----------------------------------------
+		new_layout = QHBoxLayout()
+		new_layout.setContentsMargins(0,0,0,0)
+		new_layout.setSpacing(3)
+		new_layout.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+
+		confirm_btn = QPushButton("Confirm")
+		confirm_btn.clicked.connect(self.accept)
+		cancel_btn = QPushButton("Cancel")
+		cancel_btn.clicked.connect(self.reject)
+
+		new_layout.addWidget(confirm_btn)
+		new_layout.addStretch(0)
+		new_layout.addWidget(cancel_btn)
+
+		main_layout.addLayout(new_layout)
+
+	def get_name(self):
+		return self.variant_in.text()
+
+
 class BatchVariantDialog(QDialog):
-	def __init__(self, parent=None, AssetName=str()):
+	def __init__(self, parent=None, AssetName=str(), W_Width=int(300), W_Height=int(500)):
 		super(BatchVariantDialog, self).__init__(parent=parent)
 
 		self._assetName = AssetName
 
-		self.setFixedSize(300, 500)
+		self.setFixedSize(W_Width, W_Height)
 
 		main_layout = QVBoxLayout(self)
 		main_layout.setContentsMargins(5,5,5,5)
@@ -471,7 +537,7 @@ class PublishDialog(PublishCore):
 		super(PublishDialog, self).__init__(**kw)
 		self._version = 1
 
-		self.setFixedSize(500, 500)
+		# self.setFixedSize(500, 500)
 
 		main_layout = QVBoxLayout(self)
 		main_layout.setContentsMargins(5,5,5,5)
@@ -687,7 +753,7 @@ class PublishGameDialog(PublishCore):
 		self._assetSpace = "{}_Game".format(self._assetSpace)
 		self._publishDirectory = self.get_publish_relativePath()
 
-		self.setFixedSize(500, 500)
+		# self.setFixedSize(W_Width, W_Height)
 
 		main_layout = QVBoxLayout(self)
 		main_layout.setContentsMargins(5,5,5,5)
@@ -723,12 +789,15 @@ class PublishGameDialog(PublishCore):
 		new_label.setAlignment(Qt.AlignRight|Qt.AlignCenter)
 		new_label.setFixedWidth(100)
 		self.new_check = QCheckBox("New Variant?")
+		remove_btn = QPushButton("Remove Variant")
+		remove_btn.clicked.connect(self.show_removeVariant)
 		batch_btn = QPushButton("Create Variants")
 		batch_btn.clicked.connect(self.show_CreateBatchVariants)
 
 		new_layout.addWidget(new_label)
 		new_layout.addWidget(self.new_check)
 		new_layout.addStretch(0)
+		new_layout.addWidget(remove_btn)
 		new_layout.addWidget(batch_btn)
 
 		publishgrp_layout.addLayout(new_layout)
@@ -845,6 +914,23 @@ class PublishGameDialog(PublishCore):
 			# msg = QMessageBox()
 			# msg.information(self, 'Published', '{} File is Published.'.format(publish_dialog.get_PublishedFile()), QMessageBox.Ok)
 
+	def show_removeVariant(self):
+		_dialog = RemoveVariantDialog()
+		if _dialog.exec_() == _dialog.Accepted:
+			self.load_publishFile()
+			varinat_Name = _dialog.get_name()
+			if self._publish.has_variant(varinat_Name):
+				self._publish.remove_variant(varinat_Name)
+
+				if os.path.exists(self._project.get_PublishDirectory()):
+					# make sure publish path exists
+					publish_path = self.get_publish_directory()
+					if not os.path.exists(publish_path):
+						os.makedirs(publish_path)
+
+				self._publish.save(directory=publish_path)
+				self.load_publishFile()
+
 	def load_publishFile(self):
 		publish_path = os.path.join(self.get_publish_directory(), PUBLISH_FILE)
 		self._publish.load(directory=publish_path)
@@ -871,6 +957,7 @@ class PublishGameDialog(PublishCore):
 
 	def load_variants(self):
 		variants = self._publish.get_variants()
+		self.variant_list.clear()
 		self.variant_list.addItems(variants)
 
 	def get_PublishedFile(self):

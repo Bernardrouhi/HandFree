@@ -129,6 +129,10 @@ class PublishMeta(QObject):
 	def create_variant(self, variant=str):
 		if variant not in self._publish[PublishFileKeys.LOGS]:
 			self._publish[PublishFileKeys.LOGS][variant] = list()
+	
+	def remove_variant(self, variant=str):
+		if variant in self._publish[PublishFileKeys.LOGS]:
+			del self._publish[PublishFileKeys.LOGS][variant]
 
 	def get_logs(self):
 		logs = list()
